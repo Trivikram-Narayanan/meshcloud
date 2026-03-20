@@ -1,0 +1,46 @@
+{
+  "name": "meshcloud-client",
+  "version": "0.1.0",
+  "description": "JavaScript client library for MeshCloud distributed file storage",
+  "main": "meshcloud-client.js",
+  "module": "meshcloud-client.js",
+  "browser": "meshcloud-client.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "echo 'No build step required for vanilla JS'",
+    "lint": "eslint meshcloud-client.js",
+    "docs": "jsdoc meshcloud-client.js -d docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/meshcloud.git",
+    "directory": "clients/javascript"
+  },
+  "keywords": [
+    "meshcloud",
+    "distributed",
+    "file-storage",
+    "p2p",
+    "api-client",
+    "javascript"
+  ],
+  "author": "MeshCloud Contributors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/yourusername/meshcloud/issues"
+  },
+  "homepage": "https://docs.meshcloud.io/clients/javascript/",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "browserslist": [
+    "last 2 versions",
+    "> 1%",
+    "not dead"
+  ],
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "jsdoc": "^4.0.0"
+  }
+}

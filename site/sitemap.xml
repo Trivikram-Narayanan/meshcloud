@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://meshcloud.readthedocs.io/</loc>
+         <lastmod>2026-03-11</lastmod>
+    </url>
+    <url>
+         <loc>https://meshcloud.readthedocs.io/api/rest-api/</loc>
+         <lastmod>2026-03-11</lastmod>
+    </url>
+    <url>
+         <loc>https://meshcloud.readthedocs.io/clients/python-client/</loc>
+         <lastmod>2026-03-11</lastmod>
+    </url>
+    <url>
+         <loc>https://meshcloud.readthedocs.io/developer-guide/architecture/</loc>
+         <lastmod>2026-03-11</lastmod>
+    </url>
+    <url>
+         <loc>https://meshcloud.readthedocs.io/developer-guide/database-schema/</loc>
+         <lastmod>2026-03-11</lastmod>
+    </url>
+    <url>
+         <loc>https://meshcloud.readthedocs.io/getting-started/installation/</loc>
+         <lastmod>2026-03-11</lastmod>
+    </url>
+</urlset>

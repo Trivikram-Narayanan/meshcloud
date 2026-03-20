@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MeshCloud — Network Dashboard</title>
+<meta name="description" content="Live visualization of the MeshCloud distributed storage network topology, replication status, and chunk distribution." />
+
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<!-- Cytoscape.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.27.0/cytoscape.min.js"></script>
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<style>
+  /* ===== Design Tokens ===== */
+  :root {
+    --bg: #080c14;
+    --surface: rgba(22, 30, 46, 0.72);
+    --surface-hover: rgba(30, 42, 66, 0.85);
+    --border: rgba(78, 122, 255, 0.18);
+    --border-bright: rgba(78, 122, 255, 0.45);
+    --accent: #4e7aff;
+    --accent-dim: rgba(78, 122, 255, 0.15);
+    --green: #2ecc71;
+    --red: #e74c3c;
+    --yellow: #f39c12;
+    --text: #e2e8f0;
+    --text-muted: #8898aa;
+    --text-subtle: #4a5568;
+    --radius: 14px;
+    --glow: 0 0 24px rgba(78, 122, 255, 0.2);
+    --panel-blur: blur(16px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg);
+    font-family: 'Inter', sans-serif;
+    color: var(--text);
+    background-image:
+      radial-gradient(ellipse 80% 50% at 20% 10%, rgba(78,122,255,0.08) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 80% 80%, rgba(46,204,113,0.05) 0%, transparent 70%);
+  }
+
+  /* ===== Layout ===== */
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ===== Header ===== */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 28px;
+    background: var(--surface);
+    backdrop-filter: var(--panel-blur);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .logo-icon {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, #4e7aff, #1dd1a1);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .header-meta {
+    display: flex; align-items: center; gap: 20px;
+  }
+  .badge {
+    padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .badge-live { background: rgba(46,204,113,0.15); color: var(--green); border: 1px solid rgba(46,204,113,0.35); }
+  .badge-warning { background: rgba(243,156,18,0.15); color: var(--yellow); border: 1px solid rgba(243,156,18,0.35); }
+  .badge-error { background: rgba(231,76,60,0.15); color: var(--red); border: 1px solid rgba(231,76,60,0.35); }
+  #node-url { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted); }
+  #refresh-btn {
+    padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border-bright);
+    background: var(--accent-dim); color: var(--accent); cursor: pointer;
+    font-size: 12px; font-weight: 600; transition: all 0.2s;
+  }
+  #refresh-btn:hover { background: var(--accent); color: #fff; box-shadow: var(--glow); }
+  #last-update { font-size: 11px; color: var(--text-subtle); }
+
+  /* ===== Main Grid ===== */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    grid-template-rows: 1fr 220px;
+    gap: 1px;
+    overflow: hidden;
+    background: var(--border);
+  }
+
+  /* ===== Panels ===== */
+  .panel {
+    background: var(--surface);
+    backdrop-filter: var(--panel-blur);
+    overflow: hidden;
+    position: relative;
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-title {
+    font-size: 13px; font-weight: 600; color: var(--text); text-transform: uppercase;
+    letter-spacing: 0.8px; display: flex; align-items: center; gap: 8px;
+  }
+  .panel-title .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  .dot-green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot-yellow { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+  .dot-blue { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ===== Topology Graph Panel ===== */
+  #graph-panel { grid-row: 1 / 2; grid-column: 1 / 2; }
+  #cy { width: 100%; height: calc(100% - 50px); }
+
+  /* ===== Right Panel (Stats) ===== */
+  #stats-panel {
+    grid-row: 1 / 2; grid-column: 2 / 3;
+    display: flex; flex-direction: column;
+  }
+  #stats-body { flex:1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .stat-card {
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 16px;
+    transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: var(--border-bright); }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); margin-bottom: 4px; }
+  .stat-value { font-size: 26px; font-weight: 700; letter-spacing: -1px; }
+  .stat-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.yellow { color: var(--yellow); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.blue { color: var(--accent); }
+
+  /* Disk bar */
+  .disk-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); margin-top: 8px; overflow: hidden; }
+  .disk-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+
+  /* Node list */
+  #node-list { max-height: 160px; overflow-y: auto; }
+  .node-row {
+    display: flex; align-items: center; gap: 10px; padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px;
+  }
+  .node-row:last-child { border-bottom: none; }
+  .node-status { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .ns-alive { background: var(--green); }
+  .ns-dead { background: var(--red); }
+  .ns-self { background: var(--accent); }
+  .node-url-text { font-family: 'JetBrains Mono', monospace; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .node-score { font-size: 11px; color: var(--text-muted); }
+
+  /* ===== Replication Table Panel ===== */
+  #replication-panel {
+    grid-row: 2 / 3; grid-column: 1 / 2;
+    display: flex; flex-direction: column;
+  }
+  #repl-body { flex:1; overflow-y: auto; padding: 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th {
+    padding: 8px 16px; text-align: left; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.5px; font-size: 10px; font-weight: 600;
+    border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.2);
+    position: sticky; top: 0; z-index: 1;
+  }
+  tbody tr { border-bottom: 1px solid rgba(255,255,255,0.03); transition: background 0.15s; }
+  tbody tr:hover { background: rgba(78,122,255,0.06); }
+  tbody td { padding: 7px 16px; }
+  .hash-cell {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    max-width: 120px;
+  }
+  .repl-bar-wrap { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; min-width: 80px; }
+  .repl-bar { height: 100%; border-radius: 2px; transition: width 0.4s ease, background 0.4s; }
+  .repl-ok { background: var(--green); }
+  .repl-partial { background: var(--yellow); }
+  .repl-low { background: var(--red); }
+  .tag {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .tag-ok { background: rgba(46,204,113,0.15); color: var(--green); }
+  .tag-warn { background: rgba(243,156,18,0.15); color: var(--yellow); }
+  .tag-bad { background: rgba(231,76,60,0.15); color: var(--red); }
+  .no-data { text-align: center; padding: 30px; color: var(--text-subtle); font-size: 13px; }
+
+  /* ===== Chunk Distribution Chart Panel ===== */
+  #chart-panel {
+    grid-row: 2 / 3; grid-column: 2 / 3;
+    display: flex; flex-direction: column;
+  }
+  #chart-area { flex: 1; padding: 10px 14px; display: flex; align-items: center; justify-content: center; }
+  #dist-canvas { max-width: 100%; max-height: 100%; }
+
+  /* ===== Scrollbars ===== */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ===== Login Overlay ===== */
+  #login-overlay {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(8,12,20,0.95);
+    backdrop-filter: blur(12px);
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.3s;
+  }
+  #login-overlay.hidden { opacity: 0; pointer-events: none; }
+  .login-card {
+    background: var(--surface); border: 1px solid var(--border-bright);
+    border-radius: 20px; padding: 40px 36px; width: 380px;
+    box-shadow: var(--glow), 0 40px 80px rgba(0,0,0,0.6);
+  }
+  .login-logo { text-align: center; margin-bottom: 28px; }
+  .login-logo .logo-icon { width: 52px; height: 52px; border-radius: 14px; font-size: 24px; margin: 0 auto 12px; }
+  .login-logo h2 { font-size: 22px; font-weight: 700; }
+  .login-logo p { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+  .login-field { margin-bottom: 16px; }
+  .login-field label { display: block; font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .login-field input {
+    width: 100%; padding: 11px 14px; border-radius: 9px;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    color: var(--text); font-size: 14px; font-family: inherit; outline: none;
+    transition: border-color 0.2s;
+  }
+  .login-field input:focus { border-color: var(--accent); }
+  .login-btn {
+    width: 100%; padding: 12px; border-radius: 9px; border: none;
+    background: linear-gradient(135deg, #4e7aff, #1dd1a1); color: #fff;
+    font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 4px;
+    transition: opacity 0.2s, transform 0.15s;
+  }
+  .login-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .login-err { color: var(--red); font-size: 12px; margin-top: 8px; text-align: center; min-height: 18px; }
+  .login-skip { text-align: center; margin-top: 14px; }
+  .login-skip a { color: var(--text-muted); font-size: 12px; cursor: pointer; text-decoration: underline; }
+
+  /* ===== Toast ===== */
+  #toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 200;
+    background: var(--surface); border: 1px solid var(--border-bright);
+    border-radius: 10px; padding: 12px 20px; font-size: 13px;
+    backdrop-filter: var(--panel-blur); max-width: 320px;
+    transform: translateY(20px); opacity: 0; transition: all 0.3s;
+    pointer-events: none;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🕸</div>
+      <span>MeshCloud</span>
+    </div>
+    <div class="header-meta">
+      <span id="node-url">Connecting...</span>
+      <span id="replication-badge" class="badge badge-live">Replicated</span>
+      <span id="last-update">—</span>
+      <button id="refresh-btn" onclick="refresh()">⟳ Refresh</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Topology Graph -->
+    <div class="panel" id="graph-panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="dot dot-green"></span>Node Topology</div>
+        <span style="font-size:11px;color:var(--text-muted)">Gossip score = edge weight</span>
+      </div>
+      <div id="cy"></div>
+    </div>
+
+    <!-- Stats -->
+    <div class="panel" id="stats-panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="dot dot-blue"></span>Node Stats</div>
+      </div>
+      <div id="stats-body">
+        <div class="stat-card">
+          <div class="stat-label">Files Stored</div>
+          <div class="stat-value blue" id="stat-files">—</div>
+          <div class="stat-sub" id="stat-node-id">node: —</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Peer Nodes</div>
+          <div class="stat-value green" id="stat-peers">—</div>
+          <div class="stat-sub">active in gossip ring</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Disk Usage</div>
+          <div class="stat-value" id="stat-disk">—</div>
+          <div class="disk-bar"><div class="disk-fill" id="disk-fill" style="width:0%"></div></div>
+          <div class="stat-sub" id="stat-disk-detail">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Network Peers</div>
+          <div id="node-list"><div class="no-data">Loading...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Replication Map -->
+    <div class="panel" id="replication-panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="dot dot-yellow"></span>Replication Map</div>
+        <span id="repl-summary" style="font-size:11px;color:var(--text-muted)">—</span>
+      </div>
+      <div id="repl-body">
+        <div class="no-data" id="repl-loading">Loading files...</div>
+      </div>
+    </div>
+
+    <!-- Chunk Distribution Chart -->
+    <div class="panel" id="chart-panel">
+      <div class="panel-header">
+        <div class="panel-title"><span class="dot dot-blue"></span>Chunk Distribution</div>
+      </div>
+      <div id="chart-area">
+        <canvas id="dist-canvas"></canvas>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Login Overlay -->
+<div id="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="logo-icon">🕸</div>
+      <h2>MeshCloud</h2>
+      <p>Sign in to access the network dashboard</p>
+    </div>
+    <div class="login-field">
+      <label>Username</label>
+      <input id="username" type="text" placeholder="admin" onkeydown="if(event.key==='Enter') login()" />
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input id="password" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter') login()" />
+    </div>
+    <button class="login-btn" onclick="login()">Sign In</button>
+    <div class="login-err" id="login-err"></div>
+    <div class="login-skip"><a onclick="skipLogin()">Skip (anonymous access)</a></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  State
+// ═══════════════════════════════════════════════════════
+let token = localStorage.getItem('mc_token') || null;
+let cy = null;
+let distChart = null;
+let refreshTimer = null;
+
+const API = window.location.origin;
+
+// ═══════════════════════════════════════════════════════
+//  Auth
+// ═══════════════════════════════════════════════════════
+async function login() {
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value;
+  if (!u || !p) { document.getElementById('login-err').textContent = 'Enter credentials'; return; }
+
+  try {
+    const fd = new FormData();
+    fd.append('username', u); fd.append('password', p);
+    const r = await fetch(`${API}/token`, { method: 'POST', body: fd });
+    if (!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    token = data.access_token;
+    localStorage.setItem('mc_token', token);
+    hideLogin();
+  } catch (e) {
+    document.getElementById('login-err').textContent = 'Invalid credentials';
+  }
+}
+
+function skipLogin() {
+  token = null;
+  hideLogin();
+}
+
+function hideLogin() {
+  const ol = document.getElementById('login-overlay');
+  ol.classList.add('hidden');
+  setTimeout(() => ol.style.display = 'none', 350);
+  startDashboard();
+}
+
+// ═══════════════════════════════════════════════════════
+//  API helpers
+// ═══════════════════════════════════════════════════════
+async function apiFetch(path) {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const r = await fetch(`${API}${path}`, { headers });
+  if (r.status === 401) { token = null; localStorage.removeItem('mc_token'); }
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+// ═══════════════════════════════════════════════════════
+//  Cytoscape graph
+// ═══════════════════════════════════════════════════════
+function initGraph() {
+  cy = cytoscape({
+    container: document.getElementById('cy'),
+    elements: [],
+    style: [
+      {
+        selector: 'node',
+        style: {
+          'background-color': 'data(color)',
+          'border-color': 'data(border)',
+          'border-width': 2,
+          'label': 'data(label)',
+          'color': '#e2e8f0',
+          'font-size': 10,
+          'font-family': 'JetBrains Mono, monospace',
+          'text-valign': 'bottom',
+          'text-halign': 'center',
+          'text-margin-y': 6,
+          'width': 'data(size)',
+          'height': 'data(size)',
+          'transition-property': 'background-color, border-color',
+          'transition-duration': 400,
+        }
+      },
+      {
+        selector: 'node:selected',
+        style: {
+          'border-width': 3,
+          'border-color': '#fff',
+        }
+      },
+      {
+        selector: 'edge',
+        style: {
+          'width': 'data(width)',
+          'line-color': 'rgba(78,122,255,0.35)',
+          'target-arrow-color': 'rgba(78,122,255,0.5)',
+          'target-arrow-shape': 'triangle',
+          'curve-style': 'bezier',
+          'opacity': 0.8,
+          'transition-property': 'line-color',
+          'transition-duration': 400,
+        }
+      }
+    ],
+    layout: { name: 'circle', padding: 60 },
+    userZoomingEnabled: true,
+    userPanningEnabled: true,
+  });
+}
+
+function updateGraph(elements) {
+  if (!cy) return;
+  const mapped = (elements || []).map(el => {
+    const d = el.data;
+    if (d.source) {
+      // Edge
+      return { data: { ...d, width: Math.max(1, Math.min(6, (d.weight || 0) / 20)) } };
+    } else {
+      // Node
+      const alive = d.status === 'alive';
+      const isSelf = d.type === 'self';
+      return {
+        data: {
+          ...d,
+          color: isSelf ? '#4e7aff' : (alive ? '#1a2a1a' : '#2a1a1a'),
+          border: isSelf ? '#4e7aff' : (alive ? '#2ecc71' : '#e74c3c'),
+          size: isSelf ? 40 : 28,
+          label: d.label ? d.label.split(':')[0].replace('http://','').substring(0,20) : d.id,
+        }
+      };
+    }
+  });
+
+  // Add new, update existing
+  cy.elements().remove();
+  cy.add(mapped);
+  cy.layout({ name: cy.elements().length <= 4 ? 'circle' : 'cose', padding: 60, animate: true, animationDuration: 500 }).run();
+}
+
+// ═══════════════════════════════════════════════════════
+//  Stats Panel
+// ═══════════════════════════════════════════════════════
+function updateStats(status) {
+  if (!status) return;
+  document.getElementById('node-url').textContent = status.node_url || API;
+  document.getElementById('stat-files').textContent = status.file_count ?? '—';
+  document.getElementById('stat-node-id').textContent = 'node: ' + (status.node_id || '—');
+  document.getElementById('stat-peers').textContent = status.peers ?? '—';
+
+  if (status.disk_usage_percent !== undefined) {
+    const pct = status.disk_usage_percent;
+    const diskEl = document.getElementById('stat-disk');
+    diskEl.textContent = pct.toFixed(1) + '%';
+    diskEl.className = 'stat-value ' + (pct > 80 ? 'red' : pct > 60 ? 'yellow' : 'green');
+    document.getElementById('disk-fill').style.width = pct + '%';
+    document.getElementById('disk-fill').style.background = pct > 80 ? 'var(--red)' : pct > 60 ? 'var(--yellow)' : 'var(--green)';
+    document.getElementById('stat-disk-detail').textContent =
+      `${status.disk_used_gb ?? '?'}GB used / ${status.disk_total_gb ?? '?'}GB total`;
+  }
+
+  // Peer list
+  const peers = status.peer_urls || [];
+  const nodeList = document.getElementById('node-list');
+  if (!peers.length) {
+    nodeList.innerHTML = '<div class="no-data">No peers connected</div>';
+    return;
+  }
+  nodeList.innerHTML = '';
+
+  // Self row
+  const selfRow = document.createElement('div');
+  selfRow.className = 'node-row';
+  selfRow.innerHTML = `<div class="node-status ns-self"></div><span class="node-url-text">${status.node_url || 'this node'}</span><span class="node-score">self</span>`;
+  nodeList.appendChild(selfRow);
+
+  peers.forEach(url => {
+    const row = document.createElement('div');
+    row.className = 'node-row';
+    row.innerHTML = `<div class="node-status ns-alive"></div><span class="node-url-text">${url}</span><span class="node-score">peer</span>`;
+    nodeList.appendChild(row);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  Replication Table
+// ═══════════════════════════════════════════════════════
+function updateReplication(replMap) {
+  const body = document.getElementById('repl-body');
+  if (!replMap || !replMap.length) {
+    body.innerHTML = '<div class="no-data">No files found. Upload a file to see replication status.</div>';
+    document.getElementById('repl-summary').textContent = '0 files';
+    return;
+  }
+
+  const under = replMap.filter(f => f.under_replicated).length;
+  document.getElementById('repl-summary').textContent =
+    `${replMap.length} files · ${under > 0 ? under + ' under-replicated' : 'all healthy'}`;
+
+  const badge = document.getElementById('replication-badge');
+  badge.textContent = under > 0 ? `⚠ ${under} Under-Replicated` : '✓ Replicated';
+  badge.className = 'badge ' + (under > 0 ? 'badge-warning' : 'badge-live');
+
+  body.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th style="width:160px">File</th>
+          <th style="width:120px">Hash</th>
+          <th>Copies</th>
+          <th style="width:100px">Status</th>
+          <th>Nodes</th>
+        </tr>
+      </thead>
+      <tbody id="repl-rows"></tbody>
+    </table>
+  `;
+
+  const tbody = document.getElementById('repl-rows');
+  replMap.forEach(f => {
+    const pct = Math.min(100, Math.round((f.current / f.target) * 100));
+    const cls = f.current >= f.target ? 'repl-ok' : f.current >= 1 ? 'repl-partial' : 'repl-low';
+    const tag = f.current >= f.target ? 'tag-ok' : f.current >= 1 ? 'tag-warn' : 'tag-bad';
+    const tagTxt = f.current >= f.target ? 'Healthy' : f.current >= 1 ? 'Partial' : 'At risk';
+    const shortHash = (f.file_hash || '').substring(0, 12) + '…';
+    const name = f.filename || shortHash;
+    const nodesStr = (f.nodes || []).map(n => n.replace(/https?:\/\//, '').substring(0, 20)).join(', ') || '—';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td title="${name}">${name.substring(0, 24)}${name.length > 24 ? '…' : ''}</td>
+      <td class="hash-cell" title="${f.file_hash}">${shortHash}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="repl-bar-wrap"><div class="repl-bar ${cls}" style="width:${pct}%"></div></div>
+          <span style="font-size:11px;color:var(--text-muted)">${f.current}/${f.target}</span>
+        </div>
+      </td>
+      <td><span class="tag ${tag}">${tagTxt}</span></td>
+      <td style="color:var(--text-muted);font-size:11px;font-family:'JetBrains Mono',monospace">${nodesStr}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  Chunk Distribution Chart
+// ═══════════════════════════════════════════════════════
+function updateChart(status, replMap) {
+  const canvas = document.getElementById('dist-canvas');
+
+  // Aggregate file count per node from replMap
+  const nodeCounts = {};
+  if (status && status.node_url) nodeCounts[status.node_url] = status.file_count || 0;
+  (replMap || []).forEach(f => {
+    (f.nodes || []).forEach(n => {
+      nodeCounts[n] = (nodeCounts[n] || 0) + 1;
+    });
+  });
+
+  const labels = Object.keys(nodeCounts).map(n => n.replace(/https?:\/\//, '').split(':')[0].substring(0, 16));
+  const values = Object.values(nodeCounts);
+
+  const COLORS = ['#4e7aff', '#2ecc71', '#f39c12', '#e74c3c', '#9b59b6', '#1dd1a1', '#e67e22'];
+
+  if (distChart) {
+    distChart.data.labels = labels;
+    distChart.data.datasets[0].data = values;
+    distChart.data.datasets[0].backgroundColor = labels.map((_, i) => COLORS[i % COLORS.length] + 'CC');
+    distChart.update('active');
+    return;
+  }
+
+  distChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Files',
+        data: values,
+        backgroundColor: labels.map((_, i) => COLORS[i % COLORS.length] + 'CC'),
+        borderColor: labels.map((_, i) => COLORS[i % COLORS.length]),
+        borderWidth: 1,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(22,30,46,0.95)',
+          borderColor: 'rgba(78,122,255,0.35)',
+          borderWidth: 1,
+          titleColor: '#e2e8f0',
+          bodyColor: '#8898aa',
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#8898aa', font: { family: 'JetBrains Mono', size: 10 } },
+          grid: { color: 'rgba(255,255,255,0.04)' }
+        },
+        y: {
+          ticks: { color: '#8898aa', font: { size: 11 } },
+          grid: { color: 'rgba(255,255,255,0.04)' }
+        }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  Main Refresh
+// ═══════════════════════════════════════════════════════
+async function refresh() {
+  try {
+    const [status, graphData, replMap] = await Promise.allSettled([
+      apiFetch('/status'),
+      apiFetch('/api/network/graph'),
+      token ? apiFetch('/api/network/replication_map') : Promise.resolve([]),
+    ]);
+
+    if (status.status === 'fulfilled') updateStats(status.value);
+    if (graphData.status === 'fulfilled') updateGraph(graphData.value.elements);
+    if (replMap.status === 'fulfilled') updateReplication(replMap.value);
+
+    updateChart(
+      status.status === 'fulfilled' ? status.value : null,
+      replMap.status === 'fulfilled' ? replMap.value : []
+    );
+
+    document.getElementById('last-update').textContent =
+      'Updated ' + new Date().toLocaleTimeString();
+
+  } catch (e) {
+    showToast('Refresh failed: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  Toast notification
+// ═══════════════════════════════════════════════════════
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ═══════════════════════════════════════════════════════
+//  Startup
+// ═══════════════════════════════════════════════════════
+function startDashboard() {
+  initGraph();
+  refresh();
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(refresh, 10000); // auto-refresh every 10s
+}
+
+// On load: check if already logged in
+window.addEventListener('load', () => {
+  if (token) {
+    // Validate token by trying a simple request
+    apiFetch('/users/me').then(() => hideLogin()).catch(() => {
+      token = null; localStorage.removeItem('mc_token');
+      // Overlay stays up
+    });
+  }
+  // If no token, login overlay shows — clicking skip starts dashboard anyway
+});
+</script>
+</body>
+</html>

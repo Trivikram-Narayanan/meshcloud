@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: meshcloud
+  labels:
+    app: meshcloud
+    component: api
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: meshcloud
+      component: api
+  template:
+    metadata:
+      labels:
+        app: meshcloud
+        component: api
+    spec:
+      containers:
+      - name: meshcloud
+        image: meshcloud/meshcloud:latest
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: NODE_URL
+          value: "https://meshcloud.example.com"
+        - name: MESH_NODE_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: meshcloud-secrets
+              key: node-token
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: meshcloud-secrets
+              key: jwt-secret
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: meshcloud-secrets
+              key: database-url
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: storage
+          mountPath: /app/storage
+        - name: logs
+          mountPath: /app/logs
+      volumes:
+      - name: storage
+        persistentVolumeClaim:
+          claimName: meshcloud-storage
+      - name: logs
+        emptyDir: {}
+      serviceAccountName: meshcloud-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000

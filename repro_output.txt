@@ -1,0 +1,20 @@
+/Users/trivikramnarayanan/Library/Python/3.9/lib/python/site-packages/urllib3/__init__.py:35: NotOpenSSLWarning: urllib3 v2 only supports OpenSSL 1.1.1+, currently the 'ssl' module is compiled with 'LibreSSL 2.8.3'. See: https://github.com/urllib3/urllib3/issues/3020
+  warnings.warn(
+Starting Node 1 on port 8100...
+Starting Node 2 on port 8101...
+Uploading a file to Node 1...
+Upload Response: 200 - {'status': 'stored', 'hash': '2c48135b1e537b39b1cd8d56d3d32da9d28ddc6154b5716fa587f32cf6692c25', 'filename': 'test.txt'}
+Waiting for replication...
+FAILURE: File not replicated to Node 2
+Traceback (most recent call last):
+  File "/Users/trivikramnarayanan/Desktop/meshcloud/reproduce_replication_issue.py", line 78, in <module>
+    run_test()
+  File "/Users/trivikramnarayanan/Desktop/meshcloud/reproduce_replication_issue.py", line 69, in run_test
+    out, err = node1.communicate(timeout=1)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1134, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1980, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1178, in _check_timeout
+    raise TimeoutExpired(
+subprocess.TimeoutExpired: Command '['python3', '-m', 'uvicorn', 'meshcloud.main:app', '--host', '127.0.0.1', '--port', '8100']' timed out after 1 seconds

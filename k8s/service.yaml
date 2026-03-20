@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: meshcloud
+  labels:
+    app: meshcloud
+    component: api
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: meshcloud
+    component: api
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: meshcloud-loadbalancer
+  labels:
+    app: meshcloud
+    component: api
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: 8443
+    protocol: TCP
+    name: https
+  selector:
+    app: meshcloud
+    component: api
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: meshcloud-headless
+  labels:
+    app: meshcloud
+    component: api
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - port: 80
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  selector:
+    app: meshcloud
+    component: api

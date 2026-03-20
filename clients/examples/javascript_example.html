@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeshCloud JavaScript Client Example</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #2c3e50; margin-bottom: 0.5rem; }
+        .subtitle { color: #7f8c8d; margin-bottom: 2rem; }
+        .status { padding: 1rem; border-radius: 4px; margin: 1rem 0; }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0.5rem;
+            font-size: 1rem;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        input, select {
+            padding: 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            margin: 0.25rem;
+            font-size: 1rem;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        .result {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .file-input {
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 MeshCloud JavaScript Client Example</h1>
+        <p class="subtitle">Interactive demo of the MeshCloud JavaScript client library</p>
+
+        <div id="status" class="status info">Initializing...</div>
+
+        <!-- Authentication Section -->
+        <h2>🔐 Authentication</h2>
+        <div>
+            <input type="text" id="baseUrl" placeholder="MeshCloud URL" value="https://localhost:8000">
+            <input type="text" id="username" placeholder="Username" value="admin">
+            <input type="password" id="password" placeholder="Password" value="admin">
+            <button onclick="authenticate()">Authenticate</button>
+        </div>
+
+        <!-- File Upload Section -->
+        <h2>📤 File Upload</h2>
+        <div class="file-input">
+            <input type="file" id="fileInput" accept="*/*">
+            <button onclick="uploadFile()" id="uploadBtn" disabled>Upload File</button>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div id="uploadStatus"></div>
+
+        <!-- File Operations Section -->
+        <h2>🔍 File Operations</h2>
+        <div>
+            <input type="text" id="fileHash" placeholder="File hash to check" size="50">
+            <button onclick="checkFileExists()">Check Existence</button>
+            <button onclick="getFileLocations()">Get Locations</button>
+        </div>
+
+        <!-- System Monitoring Section -->
+        <h2>📊 System Monitoring</h2>
+        <div>
+            <select id="metricType">
+                <option value="health">Health Check</option>
+                <option value="system">System Metrics</option>
+                <option value="application">Application Metrics</option>
+            </select>
+            <button onclick="getMetrics()">Get Metrics</button>
+        </div>
+
+        <!-- Results Section -->
+        <h2>📋 Results</h2>
+        <div id="results" class="result">Results will appear here...</div>
+
+        <!-- Clear Results -->
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <!-- Load MeshCloud Client Library -->
+    <script src="../javascript/meshcloud-client.js"></script>
+
+    <script>
+        let client = null;
+        let isAuthenticated = false;
+
+        // Update UI based on authentication status
+        function updateAuthStatus() {
+            const statusDiv = document.getElementById('status');
+            const uploadBtn = document.getElementById('uploadBtn');
+
+            if (isAuthenticated) {
+                statusDiv.className = 'status success';
+                statusDiv.textContent = '✅ Authenticated and ready!';
+                uploadBtn.disabled = false;
+            } else {
+                statusDiv.className = 'status info';
+                statusDiv.textContent = 'Not authenticated. Please authenticate first.';
+                uploadBtn.disabled = true;
+            }
+        }
+
+        // Authentication function
+        async function authenticate() {
+            const baseUrl = document.getElementById('baseUrl').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                updateStatus('Authenticating...', 'info');
+                client = new MeshCloudClient(baseUrl, { username, password });
+
+                const result = await client.authenticate(username, password);
+                isAuthenticated = true;
+                updateAuthStatus();
+
+                logResult('Authentication successful:', result);
+                updateStatus('✅ Authentication successful!', 'success');
+
+            } catch (error) {
+                isAuthenticated = false;
+                updateAuthStatus();
+                logResult('Authentication failed:', error.message);
+                updateStatus('❌ Authentication failed: ' + error.message, 'error');
+            }
+        }
+
+        // File upload function
+        async function uploadFile() {
+            if (!isAuthenticated) {
+                alert('Please authenticate first!');
+                return;
+            }
+
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select a file first!');
+                return;
+            }
+
+            try {
+                updateStatus('Uploading file...', 'info');
+                document.getElementById('uploadBtn').disabled = true;
+
+                const result = await client.uploadFile(file, {
+                    onProgress: (progress, current, total) => {
+                        document.getElementById('progressFill').style.width = progress + '%';
+                        document.getElementById('uploadStatus').textContent =
+                            `Uploading... ${current}/${total} chunks (${progress.toFixed(1)}%)`;
+                    }
+                });
+
+                document.getElementById('progressFill').style.width = '100%';
+                document.getElementById('uploadStatus').textContent = '✅ Upload complete!';
+                logResult('File uploaded successfully:', result);
+                updateStatus('✅ File uploaded successfully!', 'success');
+
+            } catch (error) {
+                logResult('Upload failed:', error.message);
+                updateStatus('❌ Upload failed: ' + error.message, 'error');
+            } finally {
+                document.getElementById('uploadBtn').disabled = false;
+            }
+        }
+
+        // Check file existence
+        async function checkFileExists() {
+            if (!isAuthenticated) {
+                alert('Please authenticate first!');
+                return;
+            }
+
+            const fileHash = document.getElementById('fileHash').value.trim();
+            if (!fileHash) {
+                alert('Please enter a file hash!');
+                return;
+            }
+
+            try {
+                updateStatus('Checking file existence...', 'info');
+                const exists = await client.fileExists(fileHash);
+                logResult('File exists:', exists);
+                updateStatus(exists ? '✅ File exists!' : '❌ File not found', exists ? 'success' : 'error');
+
+            } catch (error) {
+                logResult('Check failed:', error.message);
+                updateStatus('❌ Check failed: ' + error.message, 'error');
+            }
+        }
+
+        // Get file locations
+        async function getFileLocations() {
+            if (!isAuthenticated) {
+                alert('Please authenticate first!');
+                return;
+            }
+
+            const fileHash = document.getElementById('fileHash').value.trim();
+            if (!fileHash) {
+                alert('Please enter a file hash!');
+                return;
+            }
+
+            try {
+                updateStatus('Getting file locations...', 'info');
+                const locations = await client.getFileLocations(fileHash);
+                logResult('File locations:', locations);
+                updateStatus(`✅ File found on ${locations.length} node(s)`, 'success');
+
+            } catch (error) {
+                logResult('Location check failed:', error.message);
+                updateStatus('❌ Location check failed: ' + error.message, 'error');
+            }
+        }
+
+        // Get metrics
+        async function getMetrics() {
+            if (!isAuthenticated) {
+                alert('Please authenticate first!');
+                return;
+            }
+
+            const metricType = document.getElementById('metricType').value;
+
+            try {
+                updateStatus('Fetching metrics...', 'info');
+                const metrics = await client.getMetrics(metricType);
+                logResult(`${metricType} metrics:`, metrics);
+                updateStatus('✅ Metrics retrieved successfully!', 'success');
+
+            } catch (error) {
+                logResult('Metrics fetch failed:', error.message);
+                updateStatus('❌ Metrics fetch failed: ' + error.message, 'error');
+            }
+        }
+
+        // Utility functions
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+        }
+
+        function logResult(label, data) {
+            const resultsDiv = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            const formattedData = typeof data === 'object' ?
+                JSON.stringify(data, null, 2) : data;
+
+            resultsDiv.textContent += `[${timestamp}] ${label}\n${formattedData}\n\n`;
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('results').textContent = 'Results will appear here...\n';
+        }
+
+        // Initialize
+        updateAuthStatus();
+        clearResults();
+
+        // Add some example data
+        logResult('Example initialized', 'Use the controls above to interact with MeshCloud!');
+    </script>
+</body>
+</html>
