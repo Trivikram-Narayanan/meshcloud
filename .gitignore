@@ -1,0 +1,56 @@
+# --- Private Keys & Certificates (NEVER commit these) ---
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+node_key.pem
+node_pub.pem
+cert.pem
+key.pem
+
+# --- Database files ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Storage directories ---
+storage/
+db/
+
+# --- Test artifacts ---
+dedup_test.bin
+test_chunked_video.mp4
+*.test.bin
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+.venv/
+env/
+.env
+*.egg
+
+# --- Logs ---
+logs/
+*.log
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# --- Testing ---
+.pytest_cache/
+.coverage
+htmlcov/
