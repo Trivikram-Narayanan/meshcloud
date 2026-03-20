@@ -54,3 +54,6 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
+# Storage nodes and temporary state
+storage_node*/
+tmp_storage_node*/
