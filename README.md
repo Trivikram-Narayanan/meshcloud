@@ -1,290 +1,209 @@
-# 🌐 MeshCloud Client Libraries
+# MeshCloud
 
-Official client libraries for interacting with MeshCloud distributed file storage systems.
+A self-hosted, distributed file storage system for local networks and NAS devices.
 
-## 📚 Available Libraries
+Upload files once — MeshCloud splits them into encrypted chunks, spreads them across every node in your mesh, and lets any node serve them back. No cloud required, no single point of failure.
 
-### 🐍 Python Client
+---
 
-A comprehensive Python async client library with full API support.
+## What it does
 
-**Features:**
-- ✅ Async/await support
-- ✅ Automatic JWT authentication
-- ✅ Chunked file uploads with progress callbacks
-- ✅ Comprehensive error handling
-- ✅ Type hints and IDE support
-- ✅ Context manager support
-- ✅ Batch operations support
+- **Chunked uploads** — files are split into pieces, each hashed and verified
+- **AES-GCM encryption at rest** — every chunk is encrypted before touching disk
+- **P2P replication** — chunks automatically propagate to peer nodes
+- **Gossip protocol (SWIM-like)** — nodes discover each other, detect failures, and self-heal
+- **Content-addressable storage** — files are deduplicated by SHA-256 hash
+- **Streaming downloads** — chunks are decrypted and integrity-verified on the fly
+- **React dashboard** — upload files, browse the file list, and visualise the network graph
+- **REST API + Python & JS clients** — integrate with any pipeline
 
-**Installation:**
-```bash
-pip install meshcloud-client
+---
+
+## Architecture
+
+```
+┌──────────────────────────────────────────┐
+│              React Dashboard             │
+└───────────────────┬──────────────────────┘
+                    │ HTTP / WebSocket
+┌───────────────────▼──────────────────────┐
+│              FastAPI Node                │
+│  ┌─────────────┐  ┌────────────────────┐ │
+│  │ Control     │  │ Data Plane         │ │
+│  │ Plane       │  │ (upload/download)  │ │
+│  │ (auth/meta) │  │                    │ │
+│  └─────────────┘  └────────────────────┘ │
+│  ┌──────────────────────────────────────┐ │
+│  │ Networking: Gossip · Replication     │ │
+│  │ Discovery (UDP broadcast / DNS)      │ │
+│  └──────────────────────────────────────┘ │
+│  ┌──────────────────────────────────────┐ │
+│  │ Storage: AES-GCM · SQLite/Postgres   │ │
+│  └──────────────────────────────────────┘ │
+└───────────────┬──────────────────────────┘
+                │ HTTP gossip + replication
+        ┌───────┴────────┐
+        │  Peer Node(s)  │
+        └────────────────┘
 ```
 
-**Quick Start:**
+---
+
+## Quick start
+
+### Docker Compose (recommended)
+
+```bash
+git clone https://github.com/Trivikram-Narayanan/meshcloud.git
+cd meshcloud
+cp .env.example .env          # edit the values
+docker-compose up
+```
+
+Open [http://localhost:8000](http://localhost:8000) to access the dashboard.
+
+### Local (Python)
+
+```bash
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+
+# Minimum required env vars
+export JWT_SECRET_KEY=$(openssl rand -hex 32)
+export STORAGE_ENCRYPTION_KEY=$(openssl rand -hex 32)
+export ADMIN_PASSWORD=changeme
+
+uvicorn meshcloud.main:app --host 0.0.0.0 --port 8000
+```
+
+### Multi-node mesh
+
+Run one node per port, each pointing at its neighbours via `config/peers_<port>.json`:
+
+```bash
+./start_mesh.sh       # starts nodes on ports 8000–8002 by default
+```
+
+Or use the Kubernetes manifests in [k8s/](k8s/) / Helm chart in [helm/](helm/).
+
+---
+
+## Configuration
+
+All configuration is via environment variables. Copy `.env.example` to `.env` to get started.
+
+| Variable | Required | Description |
+|---|---|---|
+| `STORAGE_ENCRYPTION_KEY` | **Yes** | Key used to derive the AES-GCM encryption key |
+| `JWT_SECRET_KEY` | **Yes** | Secret for signing JWT tokens |
+| `ADMIN_PASSWORD` | **Yes** | Password for the built-in admin account |
+| `MESH_NODE_TOKEN` | Yes (multi-node) | Shared secret for node-to-node auth |
+| `NODE_URL` | Yes (multi-node) | Public URL of this node, e.g. `http://192.168.1.10:8000` |
+| `DATABASE_URL` | No | SQLAlchemy URL — defaults to per-node SQLite |
+| `STORAGE_DIR` | No | Directory to store chunks (default: `storage`) |
+| `NODE_ID` | No | Fixed node identity — auto-generated if unset |
+
+---
+
+## API
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/register` | Create a new user account |
+| `POST` | `/token` | Get a JWT bearer token |
+| `POST` | `/start_upload` | Begin a chunked upload session |
+| `POST` | `/upload_chunk` | Upload a single chunk |
+| `POST` | `/finalize_upload` | Assemble chunks into the final file |
+| `GET` | `/download/{hash}` | Stream a file (decrypted) |
+| `GET` | `/api/files` | List files on this node |
+| `GET` | `/api/network/graph` | Network topology for dashboard |
+| `GET` | `/health` | Liveness probe |
+| `GET` | `/api/status` | Node metrics (CPU, memory, uptime) |
+
+Full reference: [docs/api/rest-api.md](docs/api/rest-api.md)
+
+---
+
+## Clients
+
+**Python** (async):
+
 ```python
-import asyncio
 from meshcloud_client import MeshCloudClient
+import asyncio
 
 async def main():
-    client = MeshCloudClient("https://meshcloud.example.com")
-    await client.authenticate("username", "password")
-
-    # Upload a file
-    with open("file.txt", "rb") as f:
-        result = await client.upload_file(f)
-        print(f"Uploaded: {result['hash']}")
+    async with MeshCloudClient("http://localhost:8000") as c:
+        await c.authenticate("admin", "changeme")
+        result = await c.upload_file("photo.jpg")
+        print(result["hash"])
 
 asyncio.run(main())
 ```
 
-**[📖 Full Documentation](python-client.md) | [📝 Examples](examples/python_example.py)**
+**JavaScript** (browser / Node.js):
 
-### 🌐 JavaScript Client
-
-A modern JavaScript client library for browsers and Node.js.
-
-**Features:**
-- ✅ Browser and Node.js support
-- ✅ Promise-based API
-- ✅ Automatic retries and error handling
-- ✅ Progress callbacks for uploads
-- ✅ Web Crypto API for hashing
-- ✅ ESM and CommonJS support
-- ✅ Interactive HTML examples
-
-**Installation:**
-```bash
-npm install meshcloud-client
-# or
-yarn add meshcloud-client
-```
-
-**Browser Usage:**
-```html
-<script src="meshcloud-client.js"></script>
-<script>
-const client = new MeshCloudClient('https://meshcloud.example.com');
-await client.authenticate('username', 'password');
-
-const result = await client.uploadFile(fileInput.files[0]);
-console.log(`Uploaded: ${result.hash}`);
-</script>
-```
-
-**Node.js Usage:**
 ```javascript
-const { MeshCloudClient } = require('meshcloud-client');
-
-const client = new MeshCloudClient('https://meshcloud.example.com');
-await client.authenticate('username', 'password');
-
-const result = await client.uploadFile('file.txt');
-console.log(`Uploaded: ${result.hash}`);
+const client = new MeshCloudClient('http://localhost:8000');
+await client.authenticate('admin', 'changeme');
+const result = await client.uploadFile(file);
+console.log(result.hash);
 ```
-
-**[📖 Full Documentation](javascript-client.md) | [📝 Examples](examples/javascript_example.html)**
-
-## 🚀 API Feature Comparison
-
-| Feature | Python Client | JavaScript Client |
-|---------|---------------|-------------------|
-| Authentication | ✅ JWT | ✅ JWT |
-| File Upload | ✅ Chunked | ✅ Chunked |
-| File Download | ❌ (Planned) | ❌ (Planned) |
-| Progress Callbacks | ✅ | ✅ |
-| Batch Operations | ✅ | ❌ |
-| Health Checks | ✅ | ✅ |
-| Metrics Access | ✅ | ✅ |
-| Error Handling | ✅ Comprehensive | ✅ Comprehensive |
-| Type Safety | ✅ Type Hints | ❌ |
-| Async Support | ✅ Native | ✅ Promises |
-| Context Manager | ✅ | ❌ |
-| Browser Support | ❌ | ✅ |
-| Node.js Support | ✅ | ✅ |
-| Auto Retries | ✅ | ✅ |
-| SSL Verification | ✅ Configurable | ✅ Configurable |
-
-## 🛠️ Development
-
-### Building from Source
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/meshcloud.git
-cd meshcloud/clients
-
-# Python client
-cd python
-pip install -e ".[dev]"
-pytest
-
-# JavaScript client
-cd ../javascript
-npm install
-npm test
-```
-
-### Testing
-
-```bash
-# Python tests
-cd python
-pytest --cov=meshcloud_client
-
-# JavaScript tests (when implemented)
-cd javascript
-npm test
-```
-
-### Contributing
-
-We welcome contributions to the client libraries! Please see our [contributing guide](../../CONTRIBUTING.md) for details.
-
-**Guidelines:**
-- Maintain API compatibility
-- Add comprehensive tests
-- Update documentation
-- Follow language-specific conventions
-- Test against multiple MeshCloud versions
-
-## 📋 Requirements
-
-### Python Client
-- Python 3.8+
-- requests library
-- urllib3 library
-
-### JavaScript Client
-- Modern browsers with Web Crypto API support
-- Node.js 14+
-- Native fetch API or polyfill
-
-## 🔒 Security
-
-Both client libraries implement security best practices:
-
-- **Secure Authentication**: JWT tokens with automatic renewal
-- **Input Validation**: File size limits and type checking
-- **Error Handling**: No sensitive information in error messages
-- **SSL/TLS**: Configurable certificate verification
-- **Rate Limiting**: Respect server rate limits
-
-## 📊 Performance
-
-### Python Client
-- **Concurrent Uploads**: Multiple files simultaneously
-- **Memory Efficient**: Streaming file processing
-- **Configurable Chunking**: 4MB default, adjustable
-- **Connection Pooling**: HTTP session reuse
-
-### JavaScript Client
-- **Browser Optimized**: Uses Web Crypto API for hashing
-- **Streaming Uploads**: File.slice() for memory efficiency
-- **Progress Tracking**: Real-time upload progress
-- **Retry Logic**: Exponential backoff for reliability
-
-## 🎯 Use Cases
-
-### Data Pipeline Integration
-```python
-# Python: ETL pipeline integration
-async def upload_dataset(client, dataset_path):
-    result = await client.upload_file(dataset_path)
-    return result['hash']
-```
-
-### Web Application Uploads
-```javascript
-// JavaScript: Web app file uploads
-async function handleFileUpload(file) {
-    const client = new MeshCloudClient(API_URL);
-    await client.authenticate(username, password);
-
-    const result = await client.uploadFile(file, {
-        onProgress: (progress) => {
-            uploadProgressBar.style.width = progress + '%';
-        }
-    });
-
-    return result.hash;
-}
-```
-
-### Monitoring and Health Checks
-```python
-# Python: Infrastructure monitoring
-async def check_node_health(client):
-    health = await client.health_check()
-    metrics = await client.get_metrics('system')
-    return health['status'] === 'ok' and metrics['cpu_percent'] < 90
-```
-
-### Batch Processing
-```python
-# Python: Batch file processing
-async def process_directory(client, directory):
-    files = Path(directory).glob('**/*')
-    tasks = [client.upload_file(file) for file in files]
-    results = await asyncio.gather(*tasks)
-    return results
-```
-
-## 📈 Roadmap
-
-### Planned Features
-
-**Q1 2024:**
-- File download support
-- Streaming downloads
-- Multipart download resumption
-
-**Q2 2024:**
-- Client-side encryption
-- Compression support
-- Bandwidth throttling
-
-**Q3 2024:**
-- SDK for additional languages (Go, Rust)
-- Advanced retry strategies
-- Connection pooling improvements
-
-### Version Compatibility
-
-| Client Version | MeshCloud API Version | Status |
-|----------------|----------------------|--------|
-| 0.1.x | 0.1.x | ✅ Current |
-| 0.2.x | 0.2.x | 🚧 Planned |
-
-## 🆘 Support
-
-### Getting Help
-
-- **📖 Documentation**: https://docs.meshcloud.io/clients/
-- **🐛 Bug Reports**: https://github.com/yourusername/meshcloud/issues
-- **💬 Discussions**: https://github.com/yourusername/meshcloud/discussions
-- **📧 Security Issues**: security@meshcloud.io
-
-### Community
-
-- **GitHub**: https://github.com/yourusername/meshcloud
-- **Discord**: https://discord.gg/meshcloud
-- **Twitter**: [@meshcloud](https://twitter.com/meshcloud)
-
-## 📄 License
-
-All client libraries are licensed under the **Apache License 2.0**.
 
 ---
 
-<div align="center">
-  <h3>🚀 Ready to integrate MeshCloud?</h3>
-  <p>Choose your preferred language and get started!</p>
+## Development
 
-  <a href="python-client/" class="md-button md-button--primary">🐍 Python Client</a>
-  <a href="javascript-client/" class="md-button md-button--primary">🌐 JavaScript Client</a>
-  <br><br>
-  <a href="../api/rest-api/" class="md-button">📖 API Reference</a>
-  <a href="../examples/" class="md-button">📝 Examples</a>
-</div>
+```bash
+# Install dev deps
+pip install -r requirements-dev.txt
+
+# Run tests
+pytest
+
+# Run a single node with hot-reload
+uvicorn meshcloud.main:app --reload
+
+# Build the React dashboard
+cd frontend && npm install && npm run build
+```
+
+Pre-commit hooks are configured in [.pre-commit-config.yaml](.pre-commit-config.yaml).
+
+---
+
+## Project structure
+
+```
+meshcloud/
+├── control_plane/   API routes for auth, metadata, metrics
+├── data_plane/      Upload / download API routes
+├── services/        Business logic (file_service, user_service)
+├── storage/         Database models, chunker, hasher, Merkle tree
+├── security/        AES-GCM crypto, JWT auth
+└── networking/      Gossip protocol, peer replication, UDP discovery
+
+frontend/            React + Tailwind dashboard (source)
+clients/             Python and JavaScript client libraries
+docs/                MkDocs documentation source
+k8s/                 Kubernetes manifests
+helm/                Helm chart
+```
+
+---
+
+## Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
+
+1. Fork the repo and create a feature branch
+2. Make your changes with tests
+3. Open a pull request
+
+See [SECURITY.md](SECURITY.md) for responsible disclosure.
+
+---
+
+## License
+
+Apache 2.0 — see [LICENSE](LICENSE).

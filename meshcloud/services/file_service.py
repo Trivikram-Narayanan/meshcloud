@@ -250,10 +250,9 @@ async def finalize_upload(
 
     except HTTPException:
         raise
-    except Exception as e:
-        import traceback
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=traceback.format_exc())
+    except Exception:
+        logger.exception(f"Failed to finalize upload for {filename} (session={upload_id})")
+        raise HTTPException(status_code=500, detail="Upload finalization failed")
     finally:
         if 'tmp_encrypted_path' in locals() and os.path.exists(tmp_encrypted_path):
             os.remove(tmp_encrypted_path)
@@ -335,10 +334,9 @@ async def handle_legacy_upload(file: UploadFile, is_replica: bool = False) -> di
 
         logger.info(f"Legacy upload stored: {file.filename} → {file_hash} (is_replica={is_replica})")
         return {"status": "stored", "hash": file_hash, "filename": file.filename}
-    except Exception as e:
-        import traceback
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=traceback.format_exc())
+    except Exception:
+        logger.exception(f"Legacy upload failed for {file.filename}")
+        raise HTTPException(status_code=500, detail="Upload failed")
     finally:
         if 'tmp_path' in locals() and os.path.exists(tmp_path):
             os.remove(tmp_path)

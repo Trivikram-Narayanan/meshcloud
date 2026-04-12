@@ -1,39 +1,52 @@
 import os
 import base64
+import warnings
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
+from loguru import logger
 
-# Default salt for KDF
-SALT = b'meshcloud_static_salt'
+_INSECURE_DEFAULT_KEY = "default-insecure-key"
+
+# Salt for KDF — can be overridden via STORAGE_KDF_SALT env var.
+# WARNING: Changing the salt after data has been written will make all
+# existing encrypted data unreadable. Keep this value stable per deployment.
+_SALT = os.environ.get("STORAGE_KDF_SALT", "meshcloud_static_salt").encode()
 
 # Cache for derived key
 _CACHED_KEY = None
 _CACHED_SEED = None
 
+
 def get_key():
     """Derive a 32-byte key using PBKDF2 with SHA256 and cache it."""
     global _CACHED_KEY, _CACHED_SEED
-    
-    seed = os.environ.get("STORAGE_ENCRYPTION_KEY", "default-insecure-key")
-    
+
+    seed = os.environ.get("STORAGE_ENCRYPTION_KEY", _INSECURE_DEFAULT_KEY)
+
+    if seed == _INSECURE_DEFAULT_KEY:
+        logger.warning(
+            "STORAGE_ENCRYPTION_KEY is not set. Using an insecure default key. "
+            "Set the STORAGE_ENCRYPTION_KEY environment variable before storing any real data."
+        )
+
     if _CACHED_KEY and seed == _CACHED_SEED:
         return _CACHED_KEY
-    
+
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
-        salt=SALT,
-        iterations=100000
+        salt=_SALT,
+        iterations=100000,
     )
     key = kdf.derive(seed.encode())
-    
+
     _CACHED_KEY = key
     _CACHED_SEED = seed
-    
+
     return _CACHED_KEY
 
 def encrypt_data(data: bytes) -> bytes:

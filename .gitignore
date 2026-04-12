@@ -13,15 +13,31 @@ key.pem
 *.db
 *.sqlite
 *.sqlite3
+*.db-shm
+*.db-wal
 
 # --- Storage directories ---
 storage/
+storage_node*/
+tmp_storage_node*/
+test_diag_dir/
 db/
+
+# --- MkDocs built output ---
+site/
+
+# --- Frontend build output ---
+frontend/build/
 
 # --- Test artifacts ---
 dedup_test.bin
 test_chunked_video.mp4
 *.test.bin
+repro_output.txt
+reproduction_scripts/
+
+# --- Dev utilities ---
+create_zip.py
 
 # --- Python ---
 __pycache__/
@@ -54,6 +70,4 @@ logs/
 .pytest_cache/
 .coverage
 htmlcov/
-# Storage nodes and temporary state
-storage_node*/
-tmp_storage_node*/
+.benchmarks/

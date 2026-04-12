@@ -94,9 +94,11 @@ class GossipProtocol:
     def handle_failure(self, peer_url):
         with self.lock:
             if peer_url in self.peers:
-                # Decrease score (Failure Detection)
-                self.peers[peer_url]["score"] -= 25
-                logger.debug(f"📉 Peer {peer_url} score dropped to {self.peers[peer_url]['score']}")
+                # Decrease score (Failure Detection) — floor at min_score
+                self.peers[peer_url]["score"] = max(
+                    self.min_score, self.peers[peer_url]["score"] - 25
+                )
+                logger.debug(f"Peer {peer_url} score dropped to {self.peers[peer_url]['score']}")
 
                 # Auto Removal / Marking Offline
                 if self.peers[peer_url]["score"] <= self.min_score:

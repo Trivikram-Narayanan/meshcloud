@@ -8,14 +8,25 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 import jwt
+from loguru import logger
 from pydantic import BaseModel
 
 # JWT Configuration
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", secrets.token_hex(32))
+# WARNING: If JWT_SECRET_KEY is not set, a random key is generated at startup.
+# This means all tokens are invalidated on every restart. Set this env var to a
+# stable, secret value (e.g. `openssl rand -hex 32`) for any persistent deployment.
+_jwt_env = os.getenv("JWT_SECRET_KEY")
+if not _jwt_env:
+    logger.warning(
+        "JWT_SECRET_KEY is not set. A temporary key has been generated — all "
+        "sessions will be lost on restart. Set JWT_SECRET_KEY for production use."
+    )
+JWT_SECRET_KEY = _jwt_env or secrets.token_hex(32)
 JWT_ALGORITHM = "HS256"
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
 
-# Password hashing - using simple hash for demo (use bcrypt in production)
+# Password hashing — SHA-256 is used here for simplicity. For production,
+# replace with a memory-hard algorithm such as Argon2 (passlib[argon2]).
 
 # Security schemes
 security = HTTPBearer()
@@ -49,13 +60,21 @@ class UserInDB(User):
     hashed_password: str
 
 
-# Mock user database - In production, use a real database
+# Demo user database — replace with a real persistent store before production.
+# The default admin password is read from ADMIN_PASSWORD env var (default: "admin").
+# Do NOT ship with the "admin"/"admin" default in production.
+_admin_password = os.getenv("ADMIN_PASSWORD", "admin")
+if _admin_password == "admin":
+    logger.warning(
+        "ADMIN_PASSWORD is using the insecure default 'admin'. "
+        "Set the ADMIN_PASSWORD environment variable for production deployments."
+    )
 fake_users_db = {
     "admin": {
         "username": "admin",
         "full_name": "Administrator",
         "email": "admin@meshcloud.local",
-        "hashed_password": hashlib.sha256("admin".encode()).hexdigest(),  # Simple hash for demo
+        "hashed_password": hashlib.sha256(_admin_password.encode()).hexdigest(),
         "disabled": False,
     }
 }
@@ -132,7 +151,12 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 
 def require_node_token(x_meshcloud_token: Optional[str] = None) -> bool:
     """Validate node-to-node authentication token."""
-    expected_token = os.getenv("MESH_NODE_TOKEN", "meshcloud_secret_token")
+    expected_token = os.getenv("MESH_NODE_TOKEN", "")
+    if not expected_token:
+        logger.warning(
+            "MESH_NODE_TOKEN is not set. Node-to-node requests are unauthenticated. "
+            "Set MESH_NODE_TOKEN to a strong secret shared across all nodes."
+        )
     if not x_meshcloud_token:
         return False
     return x_meshcloud_token == expected_token

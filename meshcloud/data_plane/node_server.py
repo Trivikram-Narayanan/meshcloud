@@ -97,22 +97,20 @@ async def upload(
 ):
     """Legacy endpoint for direct (non-chunked) file uploads."""
     try:
-        print(f"DEBUG: node_server.upload started for {file.filename} (from {x_mesh_node_id or 'client'})")
-        result = await file_service.handle_legacy_upload(file, is_replica=bool(x_mesh_node or x_mesh_node_id))
-        print(f"DEBUG: handle_legacy_upload returned {result.get('status')}")
+        is_replica = bool(x_mesh_node or x_mesh_node_id)
+        logger.debug(f"Legacy upload started: file={file.filename} replica={is_replica} from={x_mesh_node_id or 'client'}")
+        result = await file_service.handle_legacy_upload(file, is_replica=is_replica)
+        logger.debug(f"Legacy upload complete: status={result.get('status')}")
 
-        if not (x_mesh_node or x_mesh_node_id) and result["status"] != "duplicate":
+        if not is_replica and result["status"] != "duplicate":
             file_hash = result["hash"]
             final_path = os.path.join(os.getenv("STORAGE_DIR", "storage"), file_hash)
-            print(f"DEBUG: Adding background task for {file_hash}")
             background_tasks.add_task(propagate_to_peers, final_path, file.filename, file_hash)
 
         return result
     except Exception as e:
-        import traceback
-        print(f"DEBUG: node_server.upload FAILED: {str(e)}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Legacy upload failed for {file.filename}")
+        raise HTTPException(status_code=500, detail="Upload failed")
 
 
 # ---------------------------------------------------------------------------
