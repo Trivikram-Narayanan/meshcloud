@@ -1,4 +1,4 @@
-Ok # Contributing to MeshCloud
+# Contributing to MeshCloud
 
 Thank you for your interest in contributing to MeshCloud! We welcome contributions from the community. This document provides guidelines and information for contributors.
 
@@ -16,7 +16,7 @@ This project follows a code of conduct to ensure a welcoming environment for all
 
 ### 1. Find an Issue
 
-- Check the [Issues](https://github.com/yourusername/meshcloud/issues) page for open tasks
+- Check the [Issues](https://github.com/Trivikram-Narayanan/meshcloud/issues) page for open tasks
 - Look for issues labeled `good first issue` or `help wanted`
 - Comment on the issue to indicate you're working on it
 
@@ -24,7 +24,7 @@ This project follows a code of conduct to ensure a welcoming environment for all
 
 1. **Fork and Clone**:
 ```bash
-git clone https://github.com/yourusername/meshcloud.git
+git clone https://github.com/Trivikram-Narayanan/meshcloud.git
 cd meshcloud
 ```
 
@@ -46,7 +46,7 @@ pip install black ruff mypy pytest pytest-cov pre-commit
 
 5. **Initialize Database**:
 ```bash
-python -c "from app.db import init_db; init_db()"
+python -c "from meshcloud.storage.database import init_db; init_db()"
 ```
 
 6. **Set up Pre-commit Hooks**:
@@ -80,7 +80,7 @@ pytest
 
 Run with coverage:
 ```bash
-pytest --cov=app --cov=utils --cov-report=html
+pytest --cov=meshcloud --cov-report=html
 ```
 
 ### 6. Code Quality

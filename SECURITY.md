@@ -1,43 +1,45 @@
-# Security Guidelines
+# Security
 
-## ⚠️ Never Commit These Files
+## Files that must never be committed
 
-The following files must **never** be committed to git. They are already in `.gitignore`.
+The following are already in `.gitignore` — do not force-add them.
 
 | File | Contents |
-|------|----------|
-| `cert.pem` | TLS certificate |
-| `key.pem` | TLS private key |
-| `node_key.pem` | Ed25519 node signing private key |
-| `node_pub.pem` | Ed25519 node signing public key |
-| `*.db`, `*.sqlite` | Local database files |
+|---|---|
+| `cert.pem` / `key.pem` | TLS certificate and private key |
+| `node_key.pem` / `node_pub.pem` | Ed25519 node signing keys |
+| `*.db` / `*.sqlite` / `*.db-shm` / `*.db-wal` | Local database files |
+| `.env` | Runtime secrets |
 
-Run `generate_certs.sh` to generate them locally:
+Run `generate_certs.sh` to create TLS certs locally:
 
 ```bash
 chmod +x generate_certs.sh && ./generate_certs.sh
 ```
 
-## Environment Variables
+## Required environment variables
 
-All secrets must be passed via environment variables:
+All secrets must be passed via environment variables. MeshCloud will log a startup warning if any of these are missing or set to their insecure defaults.
 
-| Variable | Description | Default (INSECURE) |
-|----------|-------------|-------------------|
-| `STORAGE_ENCRYPTION_KEY` | Fernet key for at-rest encryption | `meshcloud_insecure_dev_key` |
-| `JWT_SECRET_KEY` | JWT signing secret | Random (ephemeral) |
-| `NODE_TOKEN` | Inter-node auth token | `meshcloud_secret_token` |
-| `DATABASE_URL` | SQLAlchemy database URL | SQLite default |
+| Variable | How to generate | Default (INSECURE) |
+|---|---|---|
+| `STORAGE_ENCRYPTION_KEY` | `openssl rand -hex 32` | `default-insecure-key` — warns at startup |
+| `JWT_SECRET_KEY` | `openssl rand -hex 32` | Random per-restart — all sessions lost on restart |
+| `ADMIN_PASSWORD` | any strong password | `admin` — warns at startup |
+| `MESH_NODE_TOKEN` | `openssl rand -hex 32` | Unset — inter-node requests are unauthenticated |
 
-## Production Checklist
+## Production checklist
 
-- [ ] Set `STORAGE_ENCRYPTION_KEY` to a strong random value (`python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`)
-- [ ] Set `JWT_SECRET_KEY` to a random 256-bit value
-- [ ] Set `NODE_TOKEN` to a strong random token shared across nodes
-- [ ] Use `VERIFY_SSL=true` with valid TLS certs in production
-- [ ] Replace SQLite with PostgreSQL (`DATABASE_URL=postgresql://...`) for multi-node deployments
-- [ ] Use `REPLICATION_FACTOR=3` for production durability
+- [ ] `STORAGE_ENCRYPTION_KEY` set to a strong random value
+- [ ] `JWT_SECRET_KEY` set to a stable secret (tokens survive restarts)
+- [ ] `ADMIN_PASSWORD` changed from default
+- [ ] `MESH_NODE_TOKEN` set and the same across all nodes
+- [ ] TLS enabled in front of all nodes (nginx, Caddy, or `SSL_CERT_FILE` / `SSL_KEY_FILE`)
+- [ ] PostgreSQL used instead of SQLite for multi-node deployments (`DATABASE_URL=postgresql://...`)
+- [ ] `CORS_ORIGINS` restricted to your actual frontend origin (not `*`)
 
-## Reporting Vulnerabilities
+## Reporting vulnerabilities
 
-Please report security issues privately via email to the project maintainer. Do not open public issues for vulnerabilities.
+Please report security issues **privately** — do not open a public GitHub issue.
+
+Email the maintainer directly or use GitHub's [private vulnerability reporting](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing/privately-reporting-a-security-vulnerability).
