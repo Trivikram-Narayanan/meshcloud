@@ -1,23 +1,38 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# start.sh — Start a single MeshCloud node
+# Run ./setup.sh first if you haven't already.
+set -euo pipefail
 
-echo "🛑  Stopping any existing MeshCloud instances..."
-# Kill process on port 8000 (API) and 9999 (Discovery)
-lsof -ti:8000 | xargs kill -9 2>/dev/null
-lsof -ti:9999 | xargs kill -9 2>/dev/null
+REPO="$(cd "$(dirname "$0")" && pwd)"
+cd "$REPO"
 
-echo "🧹  Cleaning development database..."
-# Remove local DB to prevent protocol mismatch errors (HTTPS vs HTTP)
-rm -f db/meshcloud.db
+# Load .env if present
+if [ -f "$REPO/.env" ]; then
+  set -o allexport
+  source "$REPO/.env"
+  set +o allexport
+else
+  echo "Warning: .env not found. Run ./setup.sh first."
+fi
 
-echo "📦  Checking dependencies..."
-pip install -r requirements.txt
+# Activate venv
+if [ ! -d "$REPO/venv" ]; then
+  echo "Virtual environment not found. Run ./setup.sh first."
+  exit 1
+fi
+source "$REPO/venv/bin/activate"
 
-echo "🚀  Starting MeshCloud Node..."
-echo "    - Dashboard: http://localhost:8000/dashboard"
-echo "    - API Docs:  http://localhost:8000/docs"
+# Stop anything already on port 8000
+lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 
-# Set environment variables for local dev
-export NODE_URL="http://localhost:8000"
-export VERIFY_SSL="false"
+# Defaults for local dev if not set in .env
+export NODE_URL="${NODE_URL:-http://localhost:8000}"
+export STORAGE_DIR="${STORAGE_DIR:-storage}"
+
+echo ""
+echo "Starting MeshCloud..."
+echo "  Dashboard: http://localhost:8000"
+echo "  API docs:  http://localhost:8000/docs"
+echo ""
 
 uvicorn meshcloud.main:app --host 0.0.0.0 --port 8000 --reload
