@@ -1,5 +1,3 @@
-import pytest
-
 def test_auth_flow(client):
     # 1. Register a new user
     response = client.post(
@@ -8,8 +6,8 @@ def test_auth_flow(client):
             "username": "authtest",
             "password": "strongpassword123",
             "full_name": "Test User",
-            "email": "test@example.com"
-        }
+            "email": "test@example.com",
+        },
     )
     assert response.status_code == 200, f"Register failed: {response.text}"
     data = response.json()
@@ -18,8 +16,7 @@ def test_auth_flow(client):
 
     # 2. Login to get token
     response = client.post(
-        "/token",
-        data={"username": "authtest", "password": "strongpassword123"}
+        "/token", data={"username": "authtest", "password": "strongpassword123"}
     )
     assert response.status_code == 200, f"Login failed: {response.text}"
     token_data = response.json()
@@ -33,9 +30,9 @@ def test_auth_flow(client):
     assert user_data["username"] == "authtest"
     assert user_data["full_name"] == "Test User"
 
+
 def test_login_failure(client):
     response = client.post(
-        "/token",
-        data={"username": "authtest", "password": "wrongpassword"}
+        "/token", data={"username": "authtest", "password": "wrongpassword"}
     )
     assert response.status_code == 401

@@ -1,20 +1,18 @@
 import hashlib
 import os
-import socket
-import time
 import random
-import sys
-import subprocess
-import concurrent.futures
+import socket
 import string
+import subprocess
+import sys
 import tempfile
+import time
 
+import pytest
 import requests
 import urllib3
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-
-import pytest
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 TEMP_DIR = tempfile.gettempdir()
@@ -26,11 +24,13 @@ STORAGE_DIR = "storage_simulation"
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+
 @pytest.fixture(scope="module", autouse=True)
 def mesh_node():
     """Starts a local MeshCloud node for integration testing."""
     if os.path.exists(STORAGE_DIR):
         import shutil
+
         shutil.rmtree(STORAGE_DIR)
     if os.path.exists("test_meshcloud.db"):
         os.remove("test_meshcloud.db")
@@ -41,20 +41,29 @@ def mesh_node():
     env["STORAGE_DIR"] = STORAGE_DIR
     env["NODE_URL"] = BASE_URL
     env["NODE_ID"] = "simulation_node"
-    env["DATABASE_URL"] = f"sqlite:///test_meshcloud.db"
+    env["DATABASE_URL"] = "sqlite:///test_meshcloud.db"
     env["MESH_TOKEN"] = "meshcloud_secret_token"
-    env["PYTHONPATH"] = os.getcwd() # Ensure imports from current dir work
+    env["PYTHONPATH"] = os.getcwd()  # Ensure imports from current dir work
 
     # Start the node
     # Use text=True for string output from stdout/stderr
     proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "meshcloud.main:app", "--host", "127.0.0.1", "--port", "8000"],
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "meshcloud.main:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8000",
+        ],
         env=env,
         stdout=None,
         stderr=None,
-        text=True
+        text=True,
     )
-    
+
     # Wait for node to be ready
     max_retries = 10
     for _ in range(max_retries):
@@ -75,22 +84,20 @@ def mesh_node():
         proc.wait(timeout=5)
     except subprocess.TimeoutExpired:
         proc.kill()
-    
+
     if os.path.exists(STORAGE_DIR):
         import shutil
+
         shutil.rmtree(STORAGE_DIR)
 
 
 def get_session():
     """Creates a requests Session with retry logic."""
     session = requests.Session()
-    retries = Retry(
-        total=5,
-        backoff_factor=1,
-        status_forcelist=[500, 502, 503, 504]
-    )
-    session.mount('http://', HTTPAdapter(max_retries=retries))
+    retries = Retry(total=5, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+    session.mount("http://", HTTPAdapter(max_retries=retries))
     return session
+
 
 def generate_fake_file(filename, size_bytes):
     """Generates a file with random bytes."""
@@ -122,7 +129,9 @@ def test_legacy_upload():
             "X-MeshCloud-Token": "meshcloud_secret_token",
         }
         try:
-            resp = session.post(f"{BASE_URL}/upload", files=files, headers=headers, verify=False)
+            resp = session.post(
+                f"{BASE_URL}/upload", files=files, headers=headers, verify=False
+            )
             resp.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
             response_data = resp.json()
             print(f"[RES] Server Response: {response_data}")
@@ -220,14 +229,14 @@ def simulate_network_churn():
     """Simulates network churn by flooding the discovery port with packets."""
     print("\n--- 3. Simulating Network Churn (Discovery Flood) ---")
     print(f"[NET] Sending UDP broadcast packets to port {DISCOVERY_PORT}...")
-    
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    
+
     # Simulate 50 "nodes" announcing themselves rapidly
     start_time = time.time()
     packets_sent = 0
-    
+
     try:
         for _ in range(50):
             # In a real network, these would come from different IPs.
@@ -235,8 +244,10 @@ def simulate_network_churn():
             sock.sendto(b"MESH_DISCOVERY", ("127.0.0.1", DISCOVERY_PORT))
             packets_sent += 1
             time.sleep(0.05)  # Jitter
-            
-        print(f"[PASS] Sent {packets_sent} discovery packets in {time.time() - start_time:.2f}s")
+
+        print(
+            f"[PASS] Sent {packets_sent} discovery packets in {time.time() - start_time:.2f}s"
+        )
     except Exception as e:
         print(f"[ERR] Network churn simulation failed: {e}")
     finally:
@@ -246,24 +257,20 @@ def simulate_network_churn():
 def upload_random_file(file_idx):
     """Helper for concurrent uploads."""
     filename = f"storm_file_{file_idx}_{''.join(random.choices(string.ascii_lowercase, k=4))}.bin"
-    size = random.randint(100 * 1024, 500 * 1024) # 100KB - 500KB
-    
+    size = random.randint(100 * 1024, 500 * 1024)  # 100KB - 500KB
+
     # 1. Create content in memory
     content = os.urandom(size)
-    
+
     # 2. Start
     try:
         # We need a token for standard uploads, but legacy/node uploads use different headers.
         # Using legacy upload for speed in storm simulation
         headers = {"X-MeshCloud-Token": "meshcloud_secret_token"}
         files = {"file": (filename, content)}
-        
+
         resp = requests.post(
-            f"{BASE_URL}/upload", 
-            files=files, 
-            headers=headers, 
-            verify=False,
-            timeout=10
+            f"{BASE_URL}/upload", files=files, headers=headers, verify=False, timeout=10
         )
         resp.raise_for_status()
         return True
@@ -275,47 +282,52 @@ def upload_random_file(file_idx):
 def simulate_replication_storm(count=20):
     """Simulates a replication storm with concurrent uploads."""
     # This is a load test, renamed to start with test_ for pytest
-    simulate_replication_storm(count=10) # Lower count for CI stability
+    simulate_replication_storm(count=10)  # Lower count for CI stability
 
 
 def test_deduplication():
     """Tests content-based deduplication."""
     print("\n--- 5. Testing Content Deduplication ---")
     filename = os.path.join(TEMP_DIR, "dedup_test.bin")
-    generate_fake_file(filename, 512 * 1024) # 512KB
-    
+    generate_fake_file(filename, 512 * 1024)  # 512KB
+
     session = get_session()
     print(f"[UPL] Uploading {filename} (Pass 1)...")
     headers = {
         "X-MeshCloud-Token": "meshcloud_secret_token",
     }
     with open(filename, "rb") as f:
-        resp1 = session.post(f"{BASE_URL}/upload", files={"file": f}, headers=headers, verify=False)
+        resp1 = session.post(
+            f"{BASE_URL}/upload", files={"file": f}, headers=headers, verify=False
+        )
         if resp1.status_code != 200:
             print(f"[ERR] Pass 1 failed ({resp1.status_code}): {resp1.text}")
         resp1.raise_for_status()
-    
+
     print(f"[UPL] Uploading {filename} (Pass 2 - Same Content)...")
     with open(filename, "rb") as f:
-        resp2 = session.post(f"{BASE_URL}/upload", files={"file": f}, headers=headers, verify=False)
-    
+        resp2 = session.post(
+            f"{BASE_URL}/upload", files={"file": f}, headers=headers, verify=False
+        )
+
     if resp2.status_code != 200:
         print(f"[ERR] Pass 2 failed ({resp2.status_code}): {resp2.text}")
     resp2.raise_for_status()
-    
+
     print(f"[RES] Pass 1: {resp1.json().get('status')}")
     print(f"[RES] Pass 2: {resp2.json().get('status')}")
-    
+
     assert resp2.json().get("status") == "duplicate"
     print("[PASS] Deduplication confirmed!")
     os.remove(filename)
+
 
 if __name__ == "__main__":
     # Functional Tests
     test_legacy_upload()
     test_chunked_upload()
     test_deduplication()
-    
+
     # Resilience Tests
     simulate_network_churn()
     simulate_replication_storm(count=25)

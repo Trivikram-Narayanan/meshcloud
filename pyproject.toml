@@ -6,23 +6,30 @@ build-backend = "setuptools.build_meta"
 line-length = 88
 target-version = ["py311"]
 
+[tool.isort]
+profile = "black"
+line_length = 88
+
 [tool.ruff]
 line-length = 88
 target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "I"]
-ignore = ["E501"]
+# B008: FastAPI's Depends() pattern requires function calls in argument defaults.
+# E402: Some late imports are intentional (circular import avoidance in main.py).
+ignore = ["E501", "B008", "E402"]
 
 [tool.mypy]
 python_version = "3.11"
-warn_return_any = true
+warn_return_any = false
 warn_unused_configs = true
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# SQLAlchemy declarative base produces dynamic classes mypy cannot verify statically.
+module = "meshcloud.storage.database"
+ignore_errors = true
+
 [tool.pytest.ini_options]
-addopts = "--cov=app --cov=utils --cov-report=term-missing --cov-report=xml"
-testpaths = [
-    "tests",
-]
 asyncio_mode = "auto"

@@ -9,17 +9,17 @@ from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 
-from meshcloud.security.auth import Token, User as UserSchema
+from meshcloud.control_plane.metrics import router as metrics_router
+from meshcloud.security.auth import Token
+from meshcloud.security.auth import User as UserSchema
 from meshcloud.security.dependencies import get_current_user_db
 from meshcloud.services import user_service
 from meshcloud.storage.database import (
+    file_exists,
     get_all_files,
     get_all_peers,
     get_file_locations,
-    file_exists,
-    get_user_by_username,
 )
-from meshcloud.control_plane.metrics import router as metrics_router
 
 router = APIRouter()
 
@@ -27,6 +27,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
+
 
 class UserCreate(BaseModel):
     username: str
@@ -73,6 +74,7 @@ async def read_users_me(current_user=Depends(get_current_user_db)):
 # File & Network Info
 # ---------------------------------------------------------------------------
 
+
 @router.get("/api/files", response_model=list[dict])
 def list_files(limit: int = 50, current_user=Depends(get_current_user_db)):
     """List files stored on this node."""
@@ -91,10 +93,11 @@ def list_files(limit: int = 50, current_user=Depends(get_current_user_db)):
 def health():
     """Basic liveness probe."""
     from meshcloud.storage.database import NODE_ID
+
     return {
         "status": "ok",
         "node_id": NODE_ID,
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -112,9 +115,12 @@ def file_locations(file_hash: str):
 
 
 @router.get("/replication_status/{file_hash}")
-def replication_status_endpoint(file_hash: str, current_user=Depends(get_current_user_db)):
+def replication_status_endpoint(
+    file_hash: str, current_user=Depends(get_current_user_db)
+):
     """Return the replication health for a specific file."""
     from meshcloud.networking.replication import get_replication_status
+
     return get_replication_status(file_hash)
 
 
@@ -122,6 +128,7 @@ def replication_status_endpoint(file_hash: str, current_user=Depends(get_current
 def replication_map(current_user=Depends(get_current_user_db)):
     """Return replication status for all files — used by the dashboard."""
     from meshcloud.networking.replication import get_replication_status
+
     files = get_all_files(limit=500)
     return [get_replication_status(f.hash) for f in files]
 
@@ -132,8 +139,9 @@ def network_graph():
     Return the network topology as a graph for cytoscape.js visualization.
     Includes nodes with metadata and peer edges with gossip scores.
     """
-    from meshcloud.main import gossip_protocol
     import os
+
+    from meshcloud.main import gossip_protocol
 
     peers_state = gossip_protocol.get_graph_state() if gossip_protocol else {}
     this_node_url = os.getenv("NODE_URL", "http://localhost:8000")
@@ -143,36 +151,42 @@ def network_graph():
 
     # This node
     files = get_all_files(limit=500)
-    elements.append({
-        "data": {
-            "id": this_node_url,
-            "label": this_node_url.replace("http://", ""),
-            "file_count": len(files),
-            "status": "alive",
-            "type": "self",
+    elements.append(
+        {
+            "data": {
+                "id": this_node_url,
+                "label": this_node_url.replace("http://", ""),
+                "file_count": len(files),
+                "status": "alive",
+                "type": "self",
+            }
         }
-    })
+    )
 
     # Peer nodes + edges
     for peer_url, peer_info in peers_state.items():
-        elements.append({
-            "data": {
-                "id": peer_url,
-                "label": peer_url.replace("http://", ""),
-                "file_count": 0,
-                "status": peer_info.get("status", "unknown"),
-                "score": peer_info.get("score", 0),
-                "type": "peer",
+        elements.append(
+            {
+                "data": {
+                    "id": peer_url,
+                    "label": peer_url.replace("http://", ""),
+                    "file_count": 0,
+                    "status": peer_info.get("status", "unknown"),
+                    "score": peer_info.get("score", 0),
+                    "type": "peer",
+                }
             }
-        })
-        elements.append({
-            "data": {
-                "id": f"{this_node_url}->{peer_url}",
-                "source": this_node_url,
-                "target": peer_url,
-                "weight": peer_info.get("score", 0),
+        )
+        elements.append(
+            {
+                "data": {
+                    "id": f"{this_node_url}->{peer_url}",
+                    "source": this_node_url,
+                    "target": peer_url,
+                    "weight": peer_info.get("score", 0),
+                }
             }
-        })
+        )
 
     return {"elements": elements}
 
@@ -183,8 +197,12 @@ def node_status():
     Full node status: version, peer count, file count, disk info.
     Used by gossip protocol and dashboard.
     """
-    import psutil, os
+    import os
+
+    import psutil
+
     from meshcloud.storage.database import NODE_ID
+
     peers = get_all_peers()
     files = get_all_files(limit=500)
     disk = psutil.disk_usage("/")

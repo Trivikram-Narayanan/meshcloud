@@ -1,12 +1,10 @@
 import os
-import base64
-import warnings
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from loguru import logger
 
 _INSECURE_DEFAULT_KEY = "default-insecure-key"
@@ -49,6 +47,7 @@ def get_key():
 
     return _CACHED_KEY
 
+
 def encrypt_data(data: bytes) -> bytes:
     """Encrypt data using AES-GCM. Returns nonce + ciphertext + tag."""
     aesgcm = AESGCM(get_key())
@@ -56,22 +55,29 @@ def encrypt_data(data: bytes) -> bytes:
     # Returns nonce (12) + ciphertext + tag (16)
     return nonce + aesgcm.encrypt(nonce, data, None)
 
+
 def decrypt_data(data: bytes) -> bytes:
     """Decrypt data using AES-GCM. Expects nonce + ciphertext + tag."""
     if len(data) < 28:  # 12 (nonce) + 16 (tag)
         raise ValueError("Data too short for decryption")
-    
+
     aesgcm = AESGCM(get_key())
     nonce = data[:12]
     ciphertext = data[12:]
     return aesgcm.decrypt(nonce, ciphertext, None)
 
+
 def get_streaming_encryptor(nonce: bytes):
     """Return a hazmat ciphers encryptor for AES-GCM."""
-    cipher = Cipher(algorithms.AES(get_key()), modes.GCM(nonce), backend=default_backend())
+    cipher = Cipher(
+        algorithms.AES(get_key()), modes.GCM(nonce), backend=default_backend()
+    )
     return cipher.encryptor()
+
 
 def get_streaming_decryptor(nonce: bytes, tag: bytes):
     """Return a hazmat ciphers decryptor for AES-GCM."""
-    cipher = Cipher(algorithms.AES(get_key()), modes.GCM(nonce, tag), backend=default_backend())
+    cipher = Cipher(
+        algorithms.AES(get_key()), modes.GCM(nonce, tag), backend=default_backend()
+    )
     return cipher.decryptor()

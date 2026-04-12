@@ -28,17 +28,24 @@ class SecurityMiddleware(BaseHTTPMiddleware):
             filename = request.path_params["filename"]
             sanitized = sanitize_filename(filename)
             if sanitized != filename:
-                return JSONResponse(status_code=400, content={"error": "Invalid filename"})
+                return JSONResponse(
+                    status_code=400, content={"error": "Invalid filename"}
+                )
             request.path_params["filename"] = sanitized
 
         # Validate file size for upload endpoints
-        if request.url.path in ["/upload", "/upload_chunk"] and request.method == "POST":
+        if (
+            request.url.path in ["/upload", "/upload_chunk"]
+            and request.method == "POST"
+        ):
             content_length = request.headers.get("content-length")
             if content_length:
                 try:
                     size = int(content_length)
                     if not validate_file_size(size):
-                        return JSONResponse(status_code=413, content={"error": "File too large"})
+                        return JSONResponse(
+                            status_code=413, content={"error": "File too large"}
+                        )
                 except ValueError:
                     pass  # Invalid content-length header
 
@@ -81,7 +88,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # Log response
         process_time = time.time() - start_time
         self.logger.info(
-            f"Response: {response.status_code} for {request.method} {request.url.path} " f"in {process_time:.3f}s"
+            f"Response: {response.status_code} for {request.method} {request.url.path} "
+            f"in {process_time:.3f}s"
         )
 
         return response
@@ -91,13 +99,17 @@ def create_rate_limit_exceeded_handler():
     """Create handler for rate limit exceeded errors."""
 
     def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+        retry_after = getattr(exc, "retry_after", None)
+        detail = (
+            f"Too many requests. Try again in {retry_after} seconds."
+            if retry_after
+            else "Too many requests."
+        )
+        headers = {"Retry-After": str(retry_after)} if retry_after else {}
         return JSONResponse(
             status_code=429,
-            content={
-                "error": "Rate limit exceeded",
-                "detail": f"Too many requests. Try again in {exc.retry_after} seconds.",
-            },
-            headers={"Retry-After": str(exc.retry_after)},
+            content={"error": "Rate limit exceeded", "detail": detail},
+            headers=headers,
         )
 
     return rate_limit_handler

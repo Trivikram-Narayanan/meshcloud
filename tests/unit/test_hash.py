@@ -58,7 +58,10 @@ class TestSHA256File:
         try:
             result = sha256_file(temp_file)
             assert result == expected_hash
-            assert result == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            assert (
+                result
+                == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            )
         finally:
             import os
 
@@ -89,7 +92,6 @@ class TestSHA256File:
     def test_sha256_file_permission_denied(self):
         """Test SHA256 hashing when file permission is denied."""
         import os
-        import stat
 
         with tempfile.NamedTemporaryFile(mode="wb", delete=False) as f:
             f.write(b"test data")

@@ -1,5 +1,3 @@
-import os
-
 import pytest
 
 from meshcloud.security.crypto import decrypt_data, encrypt_data
@@ -24,7 +22,7 @@ class TestCrypto:
         """Test that decryption fails with invalid or corrupted data."""
         invalid_token = b"gAAAAABm_...this_is_not_a_valid_token"
 
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, Exception)):
             decrypt_data(invalid_token)
 
     def test_decryption_failure_with_tampered_data(self):
@@ -35,7 +33,7 @@ class TestCrypto:
         # Tamper with the encrypted data (e.g., flip a byte)
         tampered_data = encrypted_data[:-1] + bytes([encrypted_data[-1] ^ 1])
 
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, Exception)):
             decrypt_data(tampered_data)
 
     def test_key_derivation_from_env_var(self):

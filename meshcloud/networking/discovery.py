@@ -5,13 +5,15 @@ Peer discovery for MeshCloud nodes.
   - discovery_listener      : receives broadcasts from other nodes
   - dns_discovery_worker    : for Kubernetes / Docker headless-service DNS
 """
-import socket
-import time
 import json
 import os
+import socket
+import time
 from urllib.parse import urlparse
+
 from loguru import logger
-from meshcloud.storage.database import add_peer, NODE_ID
+
+from meshcloud.storage.database import NODE_ID, add_peer
 
 DISCOVERY_PORT = 9999
 DISCOVERY_MESSAGE = "MESH_DISCOVERY"
@@ -68,7 +70,7 @@ def discovery_listener():
                 parts = msg.split("|")
                 peer = None
                 node_id = None
-                
+
                 if len(parts) > 2:
                     peer = parts[1]
                     node_id = parts[2]
@@ -78,7 +80,7 @@ def discovery_listener():
                     # Backward compatibility / Fallback
                     peer_ip = addr[0]
                     peer = f"http://{peer_ip}:8000"
-                
+
                 if peer and peer != THIS_NODE:
                     add_peer(peer, node_id=node_id)
                     logger.debug(f"Discovered peer via UDP: {peer} (ID: {node_id})")
@@ -98,7 +100,9 @@ def dns_discovery_worker():
 
     while True:
         try:
-            addr_infos = socket.getaddrinfo(DNS_DISCOVERY_SERVICE, port, proto=socket.IPPROTO_TCP)
+            addr_infos = socket.getaddrinfo(
+                DNS_DISCOVERY_SERVICE, port, proto=socket.IPPROTO_TCP
+            )
             for info in addr_infos:
                 ip = info[4][0]
                 peer_url = f"{scheme}://{ip}:{port}"

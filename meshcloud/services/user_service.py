@@ -6,9 +6,9 @@ from typing import Optional
 
 from fastapi import HTTPException
 
-from meshcloud.security.auth import create_access_token, Token
+from meshcloud.security.auth import Token, create_access_token
 from meshcloud.security.dependencies import get_password_hash, verify_password
-from meshcloud.storage.database import get_user_by_username, create_user
+from meshcloud.storage.database import create_user, get_user_by_username
 
 
 def register(

@@ -222,7 +222,9 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: |
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
+      secrets.DOCKER_USERNAME != ''
 
     steps:
     - name: Checkout code
@@ -241,7 +243,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: meshcloud/meshcloud
+        images: ${{ secrets.DOCKER_USERNAME }}/meshcloud
         tags: |
           type=ref,event=branch
           type=ref,event=pr
@@ -295,7 +297,10 @@ jobs:
         twine check dist/*
 
     - name: Publish Python client to TestPyPI
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      if: |
+        github.event_name == 'push' &&
+        (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
+        secrets.TEST_PYPI_API_TOKEN != ''
       env:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
@@ -314,7 +319,10 @@ jobs:
         npm run build
 
     - name: Publish JavaScript client to npm
-      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      if: |
+        github.event_name == 'push' &&
+        (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
+        secrets.NPM_TOKEN != ''
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       run: |

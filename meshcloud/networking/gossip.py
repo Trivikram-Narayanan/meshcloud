@@ -1,15 +1,18 @@
+import random
 import threading
 import time
-import random
+
 import requests
 from loguru import logger
+
 from meshcloud.storage.database import (
-    get_all_peers,
     add_peer,
-    update_peer_status,
     get_all_files,
-    register_file_location
+    get_all_peers,
+    register_file_location,
+    update_peer_status,
 )
+
 
 class GossipProtocol:
     def __init__(self, node_url, node_id):
@@ -41,7 +44,11 @@ class GossipProtocol:
                 for p in db_peers:
                     if p not in self.peers and p != self.node_url:
                         # Initialize new peers. We don't have their node_id yet.
-                        self.peers[p] = {"score": self.max_score, "status": "alive", "node_id": None}
+                        self.peers[p] = {
+                            "score": self.max_score,
+                            "status": "alive",
+                            "node_id": None,
+                        }
 
             if not self.peers:
                 return
@@ -51,8 +58,10 @@ class GossipProtocol:
 
             # 3. Prepare Gossip Payload
             # Share random subset of known peers (Membership Dissemination)
-            peer_subset = random.sample(list(self.peers.keys()), min(len(self.peers), 5))
-            
+            peer_subset = random.sample(
+                list(self.peers.keys()), min(len(self.peers), 5)
+            )
+
             # Share "I have these files" (File Location Discovery)
             local_files = get_all_files(limit=10)
             file_hashes = [f.hash for f in local_files]
@@ -62,7 +71,7 @@ class GossipProtocol:
                 "node_id": self.node_id,
                 "peers": peer_subset,
                 "files": file_hashes,
-                "timestamp": time.time()
+                "timestamp": time.time(),
             }
 
             # 4. Send Heartbeat/Gossip
@@ -82,7 +91,9 @@ class GossipProtocol:
         with self.lock:
             if peer_url in self.peers:
                 # Increase score (Healing)
-                self.peers[peer_url]["score"] = min(self.peers[peer_url]["score"] + 5, self.max_score)
+                self.peers[peer_url]["score"] = min(
+                    self.peers[peer_url]["score"] + 5, self.max_score
+                )
                 update_peer_status(peer_url, True)
 
             # Merge received peers
@@ -98,7 +109,9 @@ class GossipProtocol:
                 self.peers[peer_url]["score"] = max(
                     self.min_score, self.peers[peer_url]["score"] - 25
                 )
-                logger.debug(f"Peer {peer_url} score dropped to {self.peers[peer_url]['score']}")
+                logger.debug(
+                    f"Peer {peer_url} score dropped to {self.peers[peer_url]['score']}"
+                )
 
                 # Auto Removal / Marking Offline
                 if self.peers[peer_url]["score"] <= self.min_score:
@@ -117,7 +130,11 @@ class GossipProtocol:
                 if sender in self.peers:
                     self.peers[sender]["node_id"] = node_id
                 else:
-                    self.peers[sender] = {"score": self.max_score, "status": "alive", "node_id": node_id}
+                    self.peers[sender] = {
+                        "score": self.max_score,
+                        "status": "alive",
+                        "node_id": node_id,
+                    }
             update_peer_status(sender, True, node_id)
 
         # Update file locations

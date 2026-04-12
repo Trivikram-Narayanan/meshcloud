@@ -84,13 +84,17 @@ class MetricsCollector:
     def get_request_rate(self, window_seconds: int = 60) -> float:
         """Get requests per second over the last window."""
         cutoff_time = datetime.now(timezone.utc) - timedelta(seconds=window_seconds)
-        recent_count = sum(1 for req in self.recent_requests if req["timestamp"] > cutoff_time)
+        recent_count = sum(
+            1 for req in self.recent_requests if req["timestamp"] > cutoff_time
+        )
         return recent_count / window_seconds if window_seconds > 0 else 0
 
     def get_error_rate(self, window_seconds: int = 60) -> float:
         """Get error rate (errors per second) over the last window."""
         cutoff_time = datetime.now(timezone.utc) - timedelta(seconds=window_seconds)
-        recent_errors = sum(1 for err in self.recent_errors if err["timestamp"] > cutoff_time)
+        recent_errors = sum(
+            1 for err in self.recent_errors if err["timestamp"] > cutoff_time
+        )
         return recent_errors / window_seconds if window_seconds > 0 else 0
 
     def get_system_metrics(self) -> Dict[str, Any]:
@@ -107,7 +111,11 @@ class MetricsCollector:
     def get_application_metrics(self) -> Dict[str, Any]:
         """Get application-level metrics."""
         with self.lock:
-            avg_duration = (self.request_duration / self.request_count) if self.request_count > 0 else 0
+            avg_duration = (
+                (self.request_duration / self.request_count)
+                if self.request_count > 0
+                else 0
+            )
 
             return {
                 "uptime_seconds": self.get_uptime(),
@@ -131,7 +139,8 @@ class MetricsCollector:
             system_metrics["cpu_percent"] < 90
             and system_metrics["memory_percent"] < 90
             and system_metrics["disk_usage_percent"] < 95
-            and app_metrics["error_rate_per_second"] < 1.0  # Less than 1 error per second
+            and app_metrics["error_rate_per_second"]
+            < 1.0  # Less than 1 error per second
         )
 
         return {
@@ -180,7 +189,9 @@ async def application_metrics(current_user: User = Depends(get_current_user_db))
 
 
 @router.get("/requests/recent")
-async def recent_requests(limit: int = 50, current_user: User = Depends(get_current_user_db)):
+async def recent_requests(
+    limit: int = 50, current_user: User = Depends(get_current_user_db)
+):
     """Get recent request history (requires authentication)."""
     with metrics.lock:
         recent = list(metrics.recent_requests)[-limit:]
@@ -188,7 +199,9 @@ async def recent_requests(limit: int = 50, current_user: User = Depends(get_curr
 
 
 @router.get("/errors/recent")
-async def recent_errors(limit: int = 20, current_user: User = Depends(get_current_user_db)):
+async def recent_errors(
+    limit: int = 20, current_user: User = Depends(get_current_user_db)
+):
     """Get recent error history (requires authentication)."""
     with metrics.lock:
         recent = list(metrics.recent_errors)[-limit:]

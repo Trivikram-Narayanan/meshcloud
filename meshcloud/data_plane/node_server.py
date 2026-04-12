@@ -3,16 +3,25 @@ Data Plane — Thin API router for file storage operations.
 All business logic is delegated to meshcloud.services.file_service.
 """
 import os
-from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, File, UploadFile, Form, Body, BackgroundTasks, HTTPException, Request, Header
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 from loguru import logger
+from pydantic import BaseModel
 
-from meshcloud.services import file_service
 from meshcloud.networking.replication import propagate_to_peers
+from meshcloud.services import file_service
 
 router = APIRouter()
 
@@ -22,6 +31,7 @@ THIS_NODE = os.getenv("NODE_URL", "http://localhost:8000")
 # ---------------------------------------------------------------------------
 # Chunked Upload Flow
 # ---------------------------------------------------------------------------
+
 
 class StartUploadRequest(BaseModel):
     filename: str
@@ -88,6 +98,7 @@ async def finalize_upload(
 # Legacy Direct Upload
 # ---------------------------------------------------------------------------
 
+
 @router.post("/upload")
 async def upload(
     background_tasks: BackgroundTasks,
@@ -98,24 +109,29 @@ async def upload(
     """Legacy endpoint for direct (non-chunked) file uploads."""
     try:
         is_replica = bool(x_mesh_node or x_mesh_node_id)
-        logger.debug(f"Legacy upload started: file={file.filename} replica={is_replica} from={x_mesh_node_id or 'client'}")
+        logger.debug(
+            f"Legacy upload started: file={file.filename} replica={is_replica} from={x_mesh_node_id or 'client'}"
+        )
         result = await file_service.handle_legacy_upload(file, is_replica=is_replica)
         logger.debug(f"Legacy upload complete: status={result.get('status')}")
 
         if not is_replica and result["status"] != "duplicate":
             file_hash = result["hash"]
             final_path = os.path.join(os.getenv("STORAGE_DIR", "storage"), file_hash)
-            background_tasks.add_task(propagate_to_peers, final_path, file.filename, file_hash)
+            background_tasks.add_task(
+                propagate_to_peers, final_path, file.filename, file_hash
+            )
 
         return result
-    except Exception as e:
+    except Exception as exc:
         logger.exception(f"Legacy upload failed for {file.filename}")
-        raise HTTPException(status_code=500, detail="Upload failed")
+        raise HTTPException(status_code=500, detail="Upload failed") from exc
 
 
 # ---------------------------------------------------------------------------
 # Download (new — with chunk verification)
 # ---------------------------------------------------------------------------
+
 
 @router.get("/download/{file_hash}")
 async def download(file_hash: str):
@@ -125,6 +141,7 @@ async def download(file_hash: str):
     Returns 409 Conflict if any chunk fails integrity verification.
     """
     from meshcloud.storage.database import get_filename
+
     filename = get_filename(file_hash) or file_hash
 
     return StreamingResponse(
@@ -138,6 +155,7 @@ async def download(file_hash: str):
 # Gossip Protocol Endpoint
 # ---------------------------------------------------------------------------
 
+
 @router.post("/gossip")
 async def receive_gossip(request: Request):
     """
@@ -146,6 +164,7 @@ async def receive_gossip(request: Request):
     Returns an ACK with our known-peers list so the gossip graph can converge.
     """
     from meshcloud.main import gossip_protocol
+
     payload = await request.json()
     if gossip_protocol is not None:
         return gossip_protocol.process_incoming_gossip(payload)

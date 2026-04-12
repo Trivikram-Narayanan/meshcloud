@@ -44,7 +44,7 @@ class TestSplitFile:
         # Create data larger than CHUNK_SIZE
         chunk_data = b"A" * CHUNK_SIZE
         test_data = chunk_data + b"B" * 100  # Two chunks + small remainder
-        
+
         expected_hash_1 = hashlib.sha256(chunk_data).hexdigest()
         expected_hash_2 = hashlib.sha256(b"B" * 100).hexdigest()
 
@@ -126,14 +126,16 @@ class TestSplitFile:
         with tempfile.TemporaryDirectory() as temp_dir:
             try:
                 chunks = split_file(temp_file, temp_dir)
-                
+
                 # 10MB / 4MB = 2 chunks + 1 partial chunk = 3 chunks
                 expected_chunks = 10 * 1024 * 1024 // CHUNK_SIZE + 1
                 assert len(chunks) == expected_chunks
-                
+
                 # Full chunks share the same hash due to identical content ('X' repeated)
                 hash_full = hashlib.sha256(b"X" * CHUNK_SIZE).hexdigest()
-                hash_last = hashlib.sha256(b"X" * (10 * 1024 * 1024 % CHUNK_SIZE)).hexdigest()
+                hash_last = hashlib.sha256(
+                    b"X" * (10 * 1024 * 1024 % CHUNK_SIZE)
+                ).hexdigest()
                 assert chunks == [hash_full, hash_full, hash_last]
 
                 # Verify total data integrity
@@ -180,7 +182,9 @@ class TestSplitFile:
 
         # Create file with Unicode name (if filesystem supports it)
         try:
-            with tempfile.NamedTemporaryFile(mode="wb", delete=False, prefix="test_unicode_", suffix=".bin") as f:
+            with tempfile.NamedTemporaryFile(
+                mode="wb", delete=False, prefix="test_unicode_", suffix=".bin"
+            ) as f:
                 f.write(test_data)
                 temp_file = f.name
 

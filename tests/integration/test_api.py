@@ -1,5 +1,4 @@
 """Integration tests for MeshCloud API endpoints."""
-import pytest
 
 
 def test_health_endpoint(client):
@@ -24,10 +23,13 @@ def test_status_endpoint(client):
     assert reg_res.status_code == 200, f"Register failed: {reg_res.text}"
 
     # 2. Login
-    token_res = client.post("/token", data={"username": user_data["username"], "password": user_data["password"]})
+    token_res = client.post(
+        "/token",
+        data={"username": user_data["username"], "password": user_data["password"]},
+    )
     assert token_res.status_code == 200, f"Login failed: {token_res.text}"
     token = token_res.json()["access_token"]
-    
+
     # 3. Access Status Endpoint
     headers = {"Authorization": f"Bearer {token}"}
     response = client.get("/api/status", headers=headers)
@@ -66,7 +68,9 @@ def test_start_upload_endpoint(client):
 def test_upload_status_endpoint(client):
     """Test upload status checking."""
     # First start an upload
-    start_response = client.post("/start_upload", json={"filename": "test.txt", "total_chunks": 2})
+    start_response = client.post(
+        "/start_upload", json={"filename": "test.txt", "total_chunks": 2}
+    )
     upload_id = start_response.json()["upload_id"]
 
     # Check status
@@ -88,7 +92,9 @@ def test_chunk_upload_workflow(client):
     import io
 
     # Step 1: Start upload
-    start_response = client.post("/start_upload", json={"filename": "test.txt", "total_chunks": 1})
+    start_response = client.post(
+        "/start_upload", json={"filename": "test.txt", "total_chunks": 1}
+    )
     upload_id = start_response.json()["upload_id"]
 
     # Step 2: Prepare chunk data
@@ -116,7 +122,9 @@ def test_finalize_upload_workflow(client):
     import uuid
 
     # Step 1: Start upload
-    start_response = client.post("/start_upload", json={"filename": "finalize_test.txt", "total_chunks": 1})
+    start_response = client.post(
+        "/start_upload", json={"filename": "finalize_test.txt", "total_chunks": 1}
+    )
     upload_id = start_response.json()["upload_id"]
 
     # Step 2: Upload chunk with unique content
@@ -156,7 +164,9 @@ def test_duplicate_upload(client):
     import io
 
     # First upload
-    start_response1 = client.post("/start_upload", json={"filename": "duplicate.txt", "total_chunks": 1})
+    start_response1 = client.post(
+        "/start_upload", json={"filename": "duplicate.txt", "total_chunks": 1}
+    )
     upload_id1 = start_response1.json()["upload_id"]
 
     chunk_data = b"This is duplicate content."
@@ -182,7 +192,9 @@ def test_duplicate_upload(client):
     assert exists_check.json()["exists"] is True, "First file upload failed to persist"
 
     # Second upload (same content)
-    start_response2 = client.post("/start_upload", json={"filename": "duplicate2.txt", "total_chunks": 1})
+    start_response2 = client.post(
+        "/start_upload", json={"filename": "duplicate2.txt", "total_chunks": 1}
+    )
     upload_id2 = start_response2.json()["upload_id"]
 
     files2 = {"file": ("chunk", io.BytesIO(chunk_data), "application/octet-stream")}
@@ -209,7 +221,9 @@ def test_invalid_chunk_hash(client):
     import io
 
     # Start upload
-    start_response = client.post("/start_upload", json={"filename": "test.txt", "total_chunks": 1})
+    start_response = client.post(
+        "/start_upload", json={"filename": "test.txt", "total_chunks": 1}
+    )
     upload_id = start_response.json()["upload_id"]
 
     # Upload chunk with wrong hash
