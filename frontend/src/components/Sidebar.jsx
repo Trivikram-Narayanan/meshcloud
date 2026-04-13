@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { Activity, HardDrive, Network, Settings, LayoutDashboard } from "lucide-react";
+import { Activity, HardDrive, Network, Settings, LayoutDashboard, Zap } from "lucide-react";
 
 export default function Sidebar() {
   const location = useLocation();
@@ -13,15 +13,22 @@ export default function Sidebar() {
   ];
 
   return (
-    <div className="w-64 bg-slate-900 border-r border-slate-800 text-white min-h-screen p-6 flex flex-col shadow-2xl">
-      <div className="flex items-center gap-3 mb-10">
-        <Network className="w-8 h-8 text-blue-500" />
-        <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500">
-          MeshCloud
-        </h2>
+    <div className="app-sidebar">
+      {/* Logo section */}
+      <div className="px-6 mb-8 pb-6 border-b border-slate-700/50">
+        <div className="flex items-center gap-2.5 mb-2">
+          <div className="p-1.5 bg-sky-600/20 rounded-lg">
+            <Network className="w-5 h-5 text-sky-500" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-slate-50 tracking-tight">MeshCloud</h1>
+            <p className="text-xs text-slate-400 font-medium">Distributed Storage</p>
+          </div>
+        </div>
       </div>
 
-      <nav className="space-y-2">
+      {/* Navigation */}
+      <nav className="sidebar-nav px-3">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -29,23 +36,31 @@ export default function Sidebar() {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                isActive 
-                  ? "bg-blue-600/20 text-blue-400 border border-blue-500/30 font-medium shadow-[0_0_15px_rgba(59,130,246,0.1)]" 
-                  : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-200"
-              }`}
+              className={`nav-item ${isActive ? 'active' : ''}`}
             >
-              <Icon className={`w-5 h-5 ${isActive ? "text-blue-400" : "text-slate-500"}`} />
-              {item.name}
+              <Icon className="w-5 h-5 flex-shrink-0" />
+              <span className="flex-1 text-sm font-medium">{item.name}</span>
+              {isActive && (
+                <Zap className="w-4 h-4 text-sky-500 opacity-60" />
+              )}
             </Link>
           );
         })}
       </nav>
       
-      <div className="mt-auto pt-8 border-t border-slate-800/50">
-        <div className="text-xs text-slate-500 flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-          Cluster Online
+      {/* Status indicator */}
+      <div className="px-6 mt-auto pt-8 border-t border-slate-700/50">
+        <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/30">
+          <div className="flex items-center gap-2.5">
+            <div className="flex items-center">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse mr-1.5"></div>
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" style={{ animationDelay: '0.3s' }}></div>
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-slate-200">Online</p>
+              <p className="text-xs text-slate-400">Mesh Active</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
