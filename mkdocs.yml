@@ -1,0 +1,163 @@
+site_name: MeshCloud Documentation
+site_description: Distributed peer-to-peer file storage and synchronization system
+site_author: MeshCloud Contributors
+site_url: https://meshcloud.readthedocs.io/
+
+# Repository
+repo_name: meshcloud
+repo_url: https://github.com/yourusername/meshcloud
+edit_uri: edit/main/docs/
+
+# Copyright
+copyright: Copyright &copy; 2024 MeshCloud Contributors
+
+# Theme configuration
+theme:
+  name: material
+  language: en
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  features:
+    - announce.dismiss
+    - content.action.edit
+    - content.action.view
+    - content.code.annotate
+    - content.code.copy
+    - content.code.select
+    - content.footnote.tooltips
+    - content.tabs.link
+    - content.tooltips
+    - header.autohide
+    - navigation.expand
+    - navigation.footer
+    - navigation.indexes
+    - navigation.instant
+    - navigation.prune
+    - navigation.sections
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.share
+    - search.suggest
+    - toc.follow
+    - toc.integrate
+
+# Plugins
+plugins:
+  - search
+
+# Customization
+extra:
+  version:
+    provider: mike
+    default: latest
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/yourusername/meshcloud
+    - icon: fontawesome/brands/docker
+      link: https://hub.docker.com/r/yourusername/meshcloud
+  generator: false
+
+# Extensions
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - meta
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Anchor link to this section for reference
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink:
+      normalize_issue_symbols: true
+      repo_url_shorthand: true
+      user: yourusername
+      repo: meshcloud
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets:
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+      combine_header_slug: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+# Navigation
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+      - Configuration: getting-started/configuration.md
+  - User Guide:
+      - Overview: user-guide/overview.md
+      - API Reference: user-guide/api-reference.md
+      - CLI Reference: user-guide/cli-reference.md
+      - File Upload: user-guide/file-upload.md
+      - Node Management: user-guide/node-management.md
+  - Developer Guide:
+      - Architecture: developer-guide/architecture.md
+      - API Development: developer-guide/api-development.md
+      - Database Schema: developer-guide/database-schema.md
+      - Testing: developer-guide/testing.md
+      - Contributing: developer-guide/contributing.md
+  - API Documentation:
+      - REST API: api/rest-api.md
+      - Authentication: api/authentication.md
+      - File Operations: api/file-operations.md
+      - Monitoring: api/monitoring.md
+  - Deployment:
+      - Docker: deployment/docker.md
+      - Kubernetes: deployment/kubernetes.md
+      - Production Setup: deployment/production.md
+  - About:
+      - Changelog: about/changelog.md
+      - License: about/license.md
+      - Contributing: about/contributing.md

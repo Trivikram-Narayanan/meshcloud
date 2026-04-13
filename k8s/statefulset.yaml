@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: meshcloud
+  labels:
+    app: meshcloud
+spec:
+  serviceName: "meshcloud-headless"
+  replicas: 10
+  selector:
+    matchLabels:
+      app: meshcloud
+  template:
+    metadata:
+      labels:
+        app: meshcloud
+    spec:
+      containers:
+      - name: meshcloud
+        image: yourusername/meshcloud:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+        - containerPort: 9999
+          name: discovery
+        env:
+        - name: DNS_DISCOVERY_SERVICE
+          value: "meshcloud-headless"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: NODE_URL
+          # Generates a predictable node URL for peer-to-peer communications
+          value: "http://$(POD_NAME).meshcloud-headless.$(POD_NAMESPACE).svc.cluster.local:8000"
+        - name: STORAGE_DIR
+          value: "/app/storage"
+        - name: DATABASE_URL
+          # Ensure local DB is kept persistently in the PVC
+          value: "sqlite:////app/storage/meshcloud.db"
+        - name: NODE_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: meshcloud-secrets
+              key: nodeToken
+        volumeMounts:
+        - name: storage-data
+          mountPath: /app/storage
+  volumeClaimTemplates:
+  - metadata:
+      name: storage-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 50Gi

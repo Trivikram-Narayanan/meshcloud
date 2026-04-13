@@ -1,0 +1,35 @@
+apiVersion: v2
+name: meshcloud
+description: A distributed peer-to-peer file storage and synchronization system
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - distributed
+  - peer-to-peer
+  - file-storage
+  - synchronization
+  - mesh-network
+home: https://meshcloud.io
+sources:
+  - https://github.com/yourusername/meshcloud
+maintainers:
+  - name: MeshCloud Team
+    email: team@meshcloud.io
+dependencies:
+  - name: postgresql
+    version: "12.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled
+  - name: redis
+    version: "17.x.x"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled
+  - name: prometheus
+    version: "15.x.x"
+    repository: "https://prometheus-community.github.io/helm-charts"
+    condition: prometheus.enabled
+  - name: grafana
+    version: "6.x.x"
+    repository: "https://grafana.github.io/helm-charts"
+    condition: grafana.enabled
