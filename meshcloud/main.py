@@ -164,7 +164,8 @@ possible_static_dirs = [
 
 static_path = None
 for s_path in possible_static_dirs:
-    if os.path.exists(s_path):
+    # Check if directory exists AND has index.html
+    if os.path.exists(s_path) and os.path.isfile(os.path.join(s_path, "index.html")):
         static_path = s_path
         break
 
