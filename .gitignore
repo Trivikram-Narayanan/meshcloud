@@ -33,6 +33,7 @@ frontend/build/
 demo_data.py
 take_screenshots.py
 capture_snapshots.py
+capture_screenshots.py
 SCREENSHOT_GUIDE.sh
 screenshots/
 

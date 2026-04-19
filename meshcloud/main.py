@@ -181,6 +181,7 @@ if static_path is not None:
     @app.get("/{full_path:path}", include_in_schema=False)
     @limiter.limit("100/minute")
     async def serve_frontend(request: Request, full_path: str):
+        from fastapi.responses import FileResponse
         # Fast fail for API paths
         if full_path.startswith("api/"):
             # We let existing API routes handle /api/
@@ -195,5 +196,9 @@ if static_path is not None:
         # Fallback to index.html for SPA routing
         index_path = os.path.join(static_path, "index.html")
         if os.path.isfile(index_path):
-            return FileResponse(index_path)
+            response = FileResponse(index_path)
+            # Add cache busting headers for index.html
+            response.headers["Cache-Control"] = "public, max-age=0, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            return response
         return {"error": "Frontend not built"}
