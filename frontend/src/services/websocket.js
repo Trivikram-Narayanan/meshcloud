@@ -6,7 +6,8 @@ export const connectWebSocket = (wsUrl) => {
   if (socket) return socket;
 
   // Ensure robust WebSocket reconnect logic
-  const WEBSOCKET_URL = wsUrl || "ws://localhost:8000/ws";
+  const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:8000";
+  const WEBSOCKET_URL = wsUrl || origin.replace(/^http/, "ws") + "/ws";
 
   socket = new WebSocket(WEBSOCKET_URL);
 

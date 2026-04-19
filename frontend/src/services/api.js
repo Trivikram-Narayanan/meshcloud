@@ -1,6 +1,15 @@
 import axios from "axios";
 
-const BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+// When the frontend is served by the MeshCloud backend (the normal case),
+// use the same host:port the browser is already talking to. This makes the
+// app work correctly whether you open it on localhost, a LAN IP, a VPN
+// address, or a domain — with zero configuration.
+// REACT_APP_API_URL can override this for separate frontend deployments.
+const BASE_URL =
+  process.env.REACT_APP_API_URL ||
+  (typeof window !== "undefined"
+    ? window.location.origin
+    : "http://localhost:8000");
 
 const api = axios.create({ baseURL: BASE_URL });
 

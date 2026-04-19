@@ -8,9 +8,10 @@ export default function MainLayout({ children }) {
   const reconnectRef = useRef(null);
 
   useEffect(() => {
-    const WS_URL = (process.env.REACT_APP_API_URL || "http://localhost:8000")
-      .replace(/^http/, "ws")
-      .replace(/\/$/, "") + "/ws";
+    const WS_URL = (
+      process.env.REACT_APP_API_URL ||
+      (typeof window !== "undefined" ? window.location.origin : "http://localhost:8000")
+    ).replace(/^http/, "ws").replace(/\/$/, "") + "/ws";
 
     const connect = () => {
       try {
