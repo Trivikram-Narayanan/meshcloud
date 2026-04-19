@@ -17,7 +17,7 @@ key.pem
 *.db-wal
 
 # --- Storage directories ---
-storage/
+/storage/
 storage_node*/
 tmp_storage_node*/
 test_diag_dir/

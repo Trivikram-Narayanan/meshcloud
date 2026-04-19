@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layers, User, Lock, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 import { login, register } from "../services/api";
+import api from "../services/api";
 import useMeshcloudStore from "../state/meshcloudStore";
 
 export default function Login() {
@@ -10,6 +11,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [firstRun, setFirstRun] = useState(false);
   const setToken = useMeshcloudStore((s) => s.setToken);
   const token = useMeshcloudStore((s) => s.token);
   const navigate = useNavigate();
@@ -17,6 +19,15 @@ export default function Login() {
   useEffect(() => {
     if (token) navigate("/", { replace: true });
   }, [token, navigate]);
+
+  useEffect(() => {
+    api.get("/api/setup/status").then((res) => {
+      if (!res.data.has_users) {
+        setMode("register");
+        setFirstRun(true);
+      }
+    }).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -73,6 +84,14 @@ export default function Login() {
 
         {/* Card */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-7 shadow-2xl">
+          {/* First-run welcome banner */}
+          {firstRun && (
+            <div className="flex items-start gap-2.5 bg-indigo-500/10 border border-indigo-500/25 text-indigo-300 rounded-lg px-3 py-2.5 text-sm mb-5">
+              <Layers className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>Welcome! Create your first account to get started.</span>
+            </div>
+          )}
+
           {/* Mode tabs */}
           <div className="flex bg-slate-800/60 border border-slate-700/50 rounded-lg p-1 mb-6">
             <button

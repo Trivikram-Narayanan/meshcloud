@@ -20,6 +20,7 @@ from meshcloud.storage.database import (
     get_all_peers,
     get_file_locations,
     get_files_by_owner,
+    has_users,
 )
 
 router = APIRouter()
@@ -88,6 +89,13 @@ def list_files(limit: int = 50, current_user=Depends(get_current_user_db)):
         }
         for f in files
     ]
+
+
+@router.get("/api/setup/status")
+def setup_status():
+    """Public endpoint — returns whether any user accounts exist yet.
+    Used by the frontend to auto-switch to Register on first run."""
+    return {"has_users": has_users()}
 
 
 @router.get("/health")
