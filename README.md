@@ -360,14 +360,4 @@ Contributions are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) fir
 Found a vulnerability? Read [SECURITY.md](SECURITY.md) and report it privately.  
 Do **not** open a public GitHub issue for security bugs.
 
----
 
-## License
-
-[MIT](LICENSE) — free to use, modify, and distribute.
-
----
-
-<p align="center">
-  Built with FastAPI · React 19 · AES-GCM · Gossip Protocol (SWIM-like)
-</p>
