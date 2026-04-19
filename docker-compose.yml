@@ -14,10 +14,10 @@ services:
       - ./logs:/app/logs
       - ./config:/app/config
     environment:
-      - NODE_URL=https://localhost:8000
-      - MESH_NODE_TOKEN=meshcloud_secret_token
-      - DATABASE_URL=postgresql://meshcloud:meshcloud_password@postgres:5432/meshcloud
-      - JWT_SECRET_KEY=your-super-secret-jwt-key-change-in-production
+      - NODE_URL=${NODE_URL:-http://localhost:8000}
+      - MESH_NODE_TOKEN=${MESH_NODE_TOKEN:?Set MESH_NODE_TOKEN in .env}
+      - DATABASE_URL=${DATABASE_URL:-sqlite:///./db/meshcloud.db}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?Set JWT_SECRET_KEY in .env}
     depends_on:
       - postgres
     networks:
@@ -28,9 +28,9 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_DB: meshcloud
-      POSTGRES_USER: meshcloud
-      POSTGRES_PASSWORD: meshcloud_password
+      POSTGRES_DB: ${POSTGRES_DB:-meshcloud}
+      POSTGRES_USER: ${POSTGRES_USER:-meshcloud}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
@@ -75,7 +75,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana_data:/var/lib/grafana
