@@ -16,7 +16,7 @@ This project follows a code of conduct to ensure a welcoming environment for all
 
 ### 1. Find an Issue
 
-- Check the [Issues](https://github.com/MeshCloud/meshcloud/issues) page for open tasks
+- Check the [Issues](https://github.com/Trivikram-Narayanan/MeshCloud/issues) page for open tasks
 - Look for issues labeled `good first issue` or `help wanted`
 - Comment on the issue to indicate you're working on it
 
@@ -24,7 +24,7 @@ This project follows a code of conduct to ensure a welcoming environment for all
 
 1. **Fork and Clone**:
 ```bash
-git clone https://github.com/MeshCloud/meshcloud.git
+git clone https://github.com/Trivikram-Narayanan/MeshCloud.git
 cd meshcloud
 ```
 

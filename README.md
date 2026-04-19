@@ -357,7 +357,6 @@ Contributions are welcome — please read [CONTRIBUTING.md](CONTRIBUTING.md) fir
 
 ## Security
 
-Found a vulnerability? Read [security.md](security.md) and report it privately.  
+Found a vulnerability? Read [SECURITY.md](SECURITY.md) and report it privately.  
 Do **not** open a public GitHub issue for security bugs.
-
 
