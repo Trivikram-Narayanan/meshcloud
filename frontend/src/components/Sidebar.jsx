@@ -1,68 +1,90 @@
-import { Link, useLocation } from "react-router-dom";
-import { Activity, HardDrive, Network, Settings, LayoutDashboard, Zap } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  LayoutDashboard,
+  HardDrive,
+  Server,
+  Network,
+  Settings,
+  Layers,
+  LogOut,
+} from "lucide-react";
+import useMeshcloudStore from "../state/meshcloudStore";
+
+const NAV = [
+  { name: "Dashboard", path: "/", icon: LayoutDashboard },
+  { name: "Files", path: "/files", icon: HardDrive },
+  { name: "Nodes", path: "/nodes", icon: Server },
+  { name: "Network", path: "/network", icon: Network },
+  { name: "Settings", path: "/settings", icon: Settings },
+];
 
 export default function Sidebar() {
   const location = useLocation();
-  
-  const navItems = [
-    { name: "Dashboard", path: "/", icon: LayoutDashboard },
-    { name: "Nodes", path: "/nodes", icon: Activity },
-    { name: "Files", path: "/files", icon: HardDrive },
-    { name: "Network", path: "/network", icon: Network },
-    { name: "Settings", path: "/settings", icon: Settings },
-  ];
+  const navigate = useNavigate();
+  const logout = useMeshcloudStore((s) => s.logout);
+  const status = useMeshcloudStore((s) => s.status);
+  const isOnline = !!status?.node_id;
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
 
   return (
-    <div className="app-sidebar">
-      {/* Logo section */}
-      <div className="px-6 mb-8 pb-6 border-b border-slate-700/50">
-        <div className="flex items-center gap-2.5 mb-2">
-          <div className="p-1.5 bg-sky-600/20 rounded-lg">
-            <Network className="w-5 h-5 text-sky-500" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-slate-50 tracking-tight">MeshCloud</h1>
-            <p className="text-xs text-slate-400 font-medium">Distributed Storage</p>
-          </div>
+    <aside className="w-[220px] flex-shrink-0 flex flex-col bg-slate-950 border-r border-slate-800/60 h-full">
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 px-4 py-5 border-b border-slate-800/60">
+        <div className="w-8 h-8 bg-indigo-600/20 border border-indigo-500/30 rounded-lg flex items-center justify-center flex-shrink-0">
+          <Layers className="w-4 h-4 text-indigo-400" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-slate-100 leading-none">MeshCloud</p>
+          <p className="text-[10px] text-slate-500 mt-0.5 truncate">
+            {status?.node_id ? status.node_id.slice(0, 14) + "…" : "Connecting…"}
+          </p>
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="sidebar-nav px-3">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          const Icon = item.icon;
+      {/* Nav */}
+      <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
+        {NAV.map(({ name, path, icon: Icon }) => {
+          const active = location.pathname === path;
           return (
             <Link
-              key={item.path}
-              to={item.path}
-              className={`nav-item ${isActive ? 'active' : ''}`}
+              key={path}
+              to={path}
+              className={active ? "nav-item-active" : "nav-item"}
             >
-              <Icon className="w-5 h-5 flex-shrink-0" />
-              <span className="flex-1 text-sm font-medium">{item.name}</span>
-              {isActive && (
-                <Zap className="w-4 h-4 text-sky-500 opacity-60" />
-              )}
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              <span>{name}</span>
             </Link>
           );
         })}
       </nav>
-      
-      {/* Status indicator */}
-      <div className="px-6 mt-auto pt-8 border-t border-slate-700/50">
-        <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/30">
-          <div className="flex items-center gap-2.5">
-            <div className="flex items-center">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse mr-1.5"></div>
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" style={{ animationDelay: '0.3s' }}></div>
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold text-slate-200">Online</p>
-              <p className="text-xs text-slate-400">Mesh Active</p>
-            </div>
-          </div>
+
+      {/* Footer */}
+      <div className="px-2 pb-3 border-t border-slate-800/60 pt-3 space-y-2">
+        {/* Status pill */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900 border border-slate-800">
+          <span
+            className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              isOnline ? "bg-emerald-500 pulse-dot" : "bg-slate-600"
+            }`}
+          />
+          <span className={`text-xs font-medium ${isOnline ? "text-emerald-400" : "text-slate-500"}`}>
+            {isOnline ? "Mesh Active" : "Connecting"}
+          </span>
+          {status?.peers != null && (
+            <span className="ml-auto text-xs text-slate-500">{status.peers}p</span>
+          )}
         </div>
+
+        {/* Logout */}
+        <button onClick={handleLogout} className="nav-item w-full text-red-500/70 hover:text-red-400 hover:bg-red-500/5">
+          <LogOut className="w-4 h-4 flex-shrink-0" />
+          <span>Sign Out</span>
+        </button>
       </div>
-    </div>
+    </aside>
   );
 }
