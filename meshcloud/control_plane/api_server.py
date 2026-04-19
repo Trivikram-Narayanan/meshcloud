@@ -135,7 +135,7 @@ def replication_map(current_user=Depends(get_current_user_db)):
 
 
 @router.get("/api/network/graph")
-def network_graph():
+def network_graph(current_user=Depends(get_current_user_db)):
     """
     Return the network topology as a graph for cytoscape.js visualization.
     Includes nodes with metadata and peer edges with gossip scores.
