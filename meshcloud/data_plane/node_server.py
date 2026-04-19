@@ -9,6 +9,7 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     Body,
+    Depends,
     File,
     Form,
     Header,
@@ -17,11 +18,30 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import StreamingResponse
+from fastapi.security import OAuth2PasswordBearer
 from loguru import logger
 from pydantic import BaseModel
 
 from meshcloud.networking.replication import propagate_to_peers
 from meshcloud.services import file_service
+
+_oauth2 = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
+
+
+async def _optional_user(token: str = Depends(_oauth2)) -> str | None:
+    """Return username if a valid JWT is present, else None (allows unauthenticated replicas)."""
+    if not token:
+        return None
+    import os
+    import jwt as pyjwt
+    secret = os.getenv("JWT_SECRET_KEY", "")
+    if not secret:
+        return None
+    try:
+        payload = pyjwt.decode(token, secret, algorithms=["HS256"])
+        return payload.get("sub")
+    except Exception:
+        return None
 
 router = APIRouter()
 
@@ -82,9 +102,10 @@ async def finalize_upload(
     chunks: list = Body(...),
     filename: str = Body(...),
     is_replica: bool = Body(False),
+    owner: str | None = Depends(_optional_user),
 ):
     """Assemble all chunks into the final encrypted file."""
-    result = await file_service.finalize_upload(upload_id, chunks, filename, is_replica)
+    result = await file_service.finalize_upload(upload_id, chunks, filename, is_replica, owner=owner)
 
     if not is_replica and result["status"] != "duplicate":
         file_hash = result["hash"]
@@ -105,6 +126,7 @@ async def upload(
     file: UploadFile = File(...),
     x_mesh_node: Optional[str] = Header(None, alias="X-MeshCloud-Node"),
     x_mesh_node_id: Optional[str] = Header(None, alias="X-MeshCloud-Node-ID"),
+    owner: str | None = Depends(_optional_user),
 ):
     """Legacy endpoint for direct (non-chunked) file uploads."""
     try:
@@ -112,7 +134,7 @@ async def upload(
         logger.debug(
             f"Legacy upload started: file={file.filename} replica={is_replica} from={x_mesh_node_id or 'client'}"
         )
-        result = await file_service.handle_legacy_upload(file, is_replica=is_replica)
+        result = await file_service.handle_legacy_upload(file, is_replica=is_replica, owner=owner)
         logger.debug(f"Legacy upload complete: status={result.get('status')}")
 
         if not is_replica and result["status"] != "duplicate":

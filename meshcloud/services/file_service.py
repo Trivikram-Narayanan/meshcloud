@@ -176,6 +176,7 @@ async def finalize_upload(
     chunks: list[str],
     filename: str,
     is_replica: bool = False,
+    owner: str | None = None,
 ) -> dict:
     """
     Verify all chunks are present, assemble into final file using streaming encryption.
@@ -249,7 +250,7 @@ async def finalize_upload(
 
         shutil.move(tmp_encrypted_path, final_path)
 
-        insert_file(file_hash, filename)
+        insert_file(file_hash, filename, owner=owner if not is_replica else None)
         store_file_chunks(file_hash, chunks)
         register_file_location(file_hash, THIS_NODE)
 
@@ -275,7 +276,7 @@ async def finalize_upload(
 # -------------------------------------------------------------------------
 
 
-async def handle_legacy_upload(file: UploadFile, is_replica: bool = False) -> dict:
+async def handle_legacy_upload(file: UploadFile, is_replica: bool = False, owner: str | None = None) -> dict:
     """
     Handle a direct (non-chunked) file upload.
     Streams to disk without buffering the entire file in memory.
@@ -342,7 +343,7 @@ async def handle_legacy_upload(file: UploadFile, is_replica: bool = False) -> di
 
         shutil.move(tmp_path, final_path)
 
-        insert_file(file_hash, file.filename)
+        insert_file(file_hash, file.filename, owner=owner if not is_replica else None)
         register_file_location(file_hash, THIS_NODE)
 
         logger.info(

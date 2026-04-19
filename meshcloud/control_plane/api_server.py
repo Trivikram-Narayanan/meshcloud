@@ -19,6 +19,7 @@ from meshcloud.storage.database import (
     get_all_files,
     get_all_peers,
     get_file_locations,
+    get_files_by_owner,
 )
 
 router = APIRouter()
@@ -77,8 +78,8 @@ async def read_users_me(current_user=Depends(get_current_user_db)):
 
 @router.get("/api/files", response_model=list[dict])
 def list_files(limit: int = 50, current_user=Depends(get_current_user_db)):
-    """List files stored on this node."""
-    files = get_all_files(limit)
+    """List files owned by the authenticated user."""
+    files = get_files_by_owner(current_user.username, limit)
     return [
         {
             "hash": f.hash,
@@ -126,10 +127,10 @@ def replication_status_endpoint(
 
 @router.get("/api/network/replication_map")
 def replication_map(current_user=Depends(get_current_user_db)):
-    """Return replication status for all files — used by the dashboard."""
+    """Return replication status for files owned by the authenticated user."""
     from meshcloud.networking.replication import get_replication_status
 
-    files = get_all_files(limit=500)
+    files = get_files_by_owner(current_user.username, limit=500)
     return [get_replication_status(f.hash) for f in files]
 
 
